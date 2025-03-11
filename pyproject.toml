@@ -1,0 +1,115 @@
+[project]
+name = "dc1"
+description = "Emulating global ocean data challenge."
+readme = "README.md"
+authors = [
+    {name="Kamel Ait Mohand"},
+    {name="Guillermo Cossio"},
+    ]
+license = "GPL-3-only"
+keywords = ["xarray", "sea-surface-height", "ocean", "benchmark"]
+dynamic = [
+    "version",
+    "classifiers",
+    ]
+
+requires-python = ">=3.11.0,<3.14.0"
+dependencies = [
+    "xarray>=2024",
+    "zarr (>=2.14.2,<3.0.0)",
+    "dask (>=2023.4.0,<2024)",
+    "netcdf4 (>=1.6.3,<2.0.0)",
+    "numpy (>=1.25,<2.0.0)",
+    "dctools",
+    "matplotlib",
+]
+
+[project.urls]
+Repository = "https://github.com/ppr-ocean-ia/dc1-emulating-global-ocean/tree/main"
+
+[tool.poetry]
+version = "0.0.1"
+
+
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+poethepoet = "^0.33.0"
+pytest = "^7.3.1"
+pytest-cov = "^6.0.0"
+ruff = "^0.9.6"
+mypy = "*"
+
+[tool.poetry.group.custom]
+optional = false
+
+[tool.poetry.group.custom.dependencies]
+# dctools = { git = "ssh://git@github.com/ppr-ocean-ia/dc-tools.git", branch = "main"}
+dctools = { path = "/home/k24aitmo/IMT/software/dc-tools"}
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.ruff]
+line-length = 100
+indent-width = 4
+exclude = [
+    ".eggs",
+    ".git",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "docs",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+
+[tool.ruff.lint]
+# E - pycodestyle subsets:
+		# E4 - whitespace
+		# E7 - multiple-statements
+		# E9 - trailing-whitespace
+# F - Enable Pyflakes
+# B - Enable flake8-bugbear
+# W - Enable pycodestyle
+# C901 - complex-structure
+# D - Enable flake8-docstrings
+# E501 - line-too-long
+select = ["D", "W", "F", "E", "B"]
+ignore = ["B008", "D401", "D406", "D407"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"  # Accepts: "google", "numpy", or "pep257".
+
+[tool.mypy]
+python_version = "3.13"
+disable_error_code = ["import-untyped"]
+check_untyped_defs = true
+ignore_missing_imports = false
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+
+[tool.poe.tasks]
+types = "mypy --install-types --non-interactive dc1"
+lint = "ruff check 'dc1' 'tests'"
+test = "pytest --capture=no --cov=dc1 --cov-fail-under=80 tests/"
+# run all
+all = [ {ref="lint"}, {ref="types"}, {ref="test"} ]
+
