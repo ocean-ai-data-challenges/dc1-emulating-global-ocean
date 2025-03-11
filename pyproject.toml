@@ -45,8 +45,16 @@ mypy = "*"
 optional = false
 
 [tool.poetry.group.custom.dependencies]
-# dctools = { git = "ssh://git@github.com/ppr-ocean-ia/dc-tools.git", branch = "main"}
-dctools = { path = "/home/k24aitmo/IMT/software/dc-tools"}
+dctools = { git = "ssh://git@github.com/ppr-ocean-ia/dc-tools.git", branch = "main"}
+
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+sphinx = "^8.2.1"
+sphinx-rtd-theme = "^3.0.2"
+myst-parser = "^4.0.1"
+pygments = "^2.19.1"
 
 [build-system]
 requires = ["poetry-core"]
