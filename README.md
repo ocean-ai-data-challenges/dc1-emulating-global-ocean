@@ -8,7 +8,7 @@ Creating  neural  emulators  of  global  ocean  dynamics,  which  reproduce  the
 
 ## Getting started
 
-Check out the quick-start guide **[TODO: add link]** or the complete API docs **[TODO: add link]** for an extensive look into it's functionality.
+Check out the quick-start guide **[TODO: add link]** or the complete API docs **[TODO: add link]** for an extensive look into its functionality.
 
 ## What is the PPR Océan & Climat?
 
