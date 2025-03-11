@@ -11,4 +11,5 @@ content/data.md
 content/metrics.md
 content/leaderboard.md
 content/submissions.md
+content/references.md
 ```
