@@ -17,11 +17,10 @@ requires-python = ">=3.11.0,<3.14.0"
 dependencies = [
     "xarray>=2024",
     "zarr (>=2.14.2,<3.0.0)",
-    "dask (>=2023.4.0,<2024)",
-    "netcdf4 (>=1.6.3,<2.0.0)",
+    "dask[distributed]>=2025.01.0",
     "numpy (>=1.25,<2.0.0)",
-    "dctools",
-    "matplotlib",
+    "dask[distributed]>=2025.01.0",
+    "mypy_boto3_s3",
 ]
 
 [project.urls]
@@ -41,11 +40,14 @@ pytest-cov = "^6.0.0"
 ruff = "^0.9.6"
 mypy = "*"
 
-[tool.poetry.group.custom]
-optional = false
 
 [tool.poetry.group.custom.dependencies]
-dctools = { git = "ssh://git@github.com/ppr-ocean-ia/dc-tools.git", branch = "main"}
+oceanbench = {git = "ssh://git@github.com/Articoking/oceanbench", branch = "main"}
+#oceanbench = {path = "/home/k24aitmo/IMT/software/oceanbench"}
+xrpatcher = {git = "ssh://git@github.com:jejjohnson/xrpatcher.git", branch = "main"}
+xesmf = {git = "git+https://github.com/pangeo-data/xESMF.git"}
+dctools = { path = "/home/k24aitmo/IMT/software/dc-tools", develop = true }
+#dctools = { git = "ssh://git@github.com/ppr-ocean-ia/dc-tools.git", branch = "main"}
 
 [tool.poetry.group.docs]
 optional = true
@@ -57,10 +59,12 @@ myst-parser = "^4.0.1"
 pygments = "^2.19.1"
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=1.0.0", "cython", "setuptools", "toml"]
 build-backend = "poetry.core.masonry.api"
+#[build-system]
+#requires = ["poetry-core", "cmake", "wheel", "setupttools"]
 
-
+#build-backend = "poetry.core.masonry.api"
 [tool.ruff]
 line-length = 100
 indent-width = 4

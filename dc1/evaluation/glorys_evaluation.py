@@ -8,31 +8,35 @@ import os
 from pathlib import Path
 from typing import Dict, List
 
-from dctools.dcio.loader import DataLoader
-from dctools.dcio.saver import DataSaver
-from dctools.processing.cmems_data import create_glorys_ndays_forecast
-from dctools.utilities.file_utils import remove_listof_files, get_list_filter_files
-from dctools.utilities.misc_utils import get_dates_from_startdate
-from dctools.utilities.net_utils import download_s3_file
+from dask.distributed import Client
+
+from dctools.data.dataloader import DatasetLoader
+from dctools.data.dataset import CmemsGlorysDataset, GlonetDataset
+#from dctools.dcio.loader import FileLoader
+#from dctools.dcio.saver import DataSaver
+from dctools.metrics.evaluator import Evaluator
+from dctools.metrics.metrics import MetricComputer
+from dctools.data.transforms import CustomTransforms
+from dctools.utilities.init_dask import setup_dask
+from dctools.utilities.xarray_utils import DICT_RENAME_CMEMS,\
+    LIST_VARS_GLONET, RANGES_GLONET, GLONET_DEPTH_VALS
+
 
 
 class GlorysEvaluation:
     """Class to evaluate models on Glorys forecasts."""
 
-    def __init__(self, arguments: Namespace, dc_config: Dict) -> None:
+    def __init__(self, arguments: Namespace) -> None:
         """Init class.
 
         Args:
-            local_data_path (str): folder where to store downloaded data.
+            aruguments (str): Namespace with config.
         """
         self.args = arguments
-        self.dc_config = dc_config
-        self.oceanbench_metrics = arguments.oceanbench_metrics
-        self.logged = False
 
     def run_eval(self) -> None:
         """Proceed to evaluation."""
-        list_start_dates = self.dc_config['list_glonet_start_dates'].split(',')
+        #list_start_dates = self.args['list_glonet_start_dates'].split(',')
         '''path_glonet = "public/glonet_reforecast_2024/"
         list_start_dates = ["2024-01-03", "2024-01-10", "2024-01-17", "2024-01-24", "2024-01-31",
                            "2024-02-07", "2024-02-14", "2024-02-21", "2024-02-28", "2024-03-06",
@@ -40,127 +44,87 @@ class GlorysEvaluation:
                            "2024-04-17", "2024-04-24", "2024-05-01", "2024-05-08", "2024-05-15",
                            "2024-05-22", "2024-05-29", "2024-06-05", "2024-06-12", "2024-06-19",
                            "2024-06-26", "2024-07-03", "2024-07-10", "2024-07-17" ]'''
-        rmse_metrics = {}
 
-        for start_date in list_start_dates:
-            self.args.dc1_logger.info(f"process start_date: {start_date}")
-            glonet_filename = start_date + '.nc'
-            glonet_filepath = os.path.join(
-                self.args.glonet_data_dir, glonet_filename
-            )
-            if not Path(glonet_filepath).is_file():
-                self.download_glonet_forecast(glonet_filename)
-            glonet_data = DataLoader.lazy_load_dataset(
-                glonet_filepath, self.args.exception_handler
-            )
-            list_dates = get_dates_from_startdate(
-                start_date, self.dc_config['glonet_n_days_forecast']
-            )
-            first_date = list_dates[0]
+        #for start_date in list_start_dates:
+        #    self.args.dclogger.info(f"process Initial Date: {start_date}")
 
-            glorys_filepath = os.path.join(self.args.glorys_data_dir, glonet_filename)
-            if not (Path(glorys_filepath).is_file()):
-                list_mercator_files = get_list_filter_files(
-                    self.args.glorys_data_dir,
-                    extension='.nc',
-                    regex="mercatorglorys",
-                    prefix=True,
-                )
-                if len(list_mercator_files) != self.dc_config['glonet_n_days_forecast']:
-                    for date in list_dates:
-                        filter = self.args.cmems_manager.get_cmems_filter_from_date(date)
-                        if not self.logged:
-                            self.args.cmems_manager.cmems_login()
-                            self.logged = True
-                        self.args.cmems_manager.cmems_download(
-                            product_id=self.dc_config['glorys_cmems_product_name'],
-                            output_dir=self.args.glorys_data_dir,
-                            filter=filter,
-                        )
-                    list_mercator_files = get_list_filter_files(
-                    self.args.glorys_data_dir,
-                    extension='.nc',
-                    regex="mercatorglorys",
-                    prefix=True,
-                )
-                assert(len(list_mercator_files) == self.dc_config['glonet_n_days_forecast'])
+        #    list_dates = get_dates_from_startdate(
+        #        start_date, self.dc_config['glonet_n_days_forecast']
+        #    )
 
-                glorys_data = create_glorys_ndays_forecast(
-                    nc_path=self.args.glorys_data_dir,
-                    list_nc_files=list_mercator_files,
-                    ref_data=glonet_data,
-                    start_date=first_date,
-                    dclogger=self.args.dc1_logger,
-                    exception_handler=self.args.exception_handler
-                )
-                DataSaver.save_dataset(
-                    glorys_data,
-                    glorys_filepath,
-                    self.args.exception_handler
-                )
-            else:
-                glorys_data = DataLoader.lazy_load_dataset(
-                    glorys_filepath, self.args.exception_handler
-                )
-            # call RMSE metric function
-            self.args.dc1_logger.info(
-                f"Compute {self.args.metric} metric for start date : {start_date}"
-            )
+        dask_cluster = setup_dask(self.args)
+        glonet_data_dir = self.args.glonet_data_dir
+        glorys_data_dir = self.args.glorys_data_dir
 
-            eval_array = self.oceanbench_metrics.compute_metric(
-                self.args.metric, glonet_data, glorys_data, False
-            )
-            rmse_metrics[start_date] = eval_array
-            # remove downloaded files
-            list_mercator_files = get_list_filter_files(
-                self.args.glorys_data_dir,
-                extension='.nc',
-                regex="mercatorglorys",
-                prefix=True,
-            )
-            # print("List Mercator files : ", list_mercator_files)
-            if len(list_mercator_files) > 0:
-                self.args.dc1_logger.info("Remove temporary Mercator files.")
-                remove_listof_files(
-                    list_mercator_files, self.args.glorys_data_dir, self.args.exception_handler
-                )
-
-        self.args.dc1_logger.info(f"Aggregated RMSE metrics : {rmse_metrics}")
-
-    def download_glonet_forecast(self, filename: str):
-        """Download glonet forecast file from Edito.
-
-        Args:
-            filename (str): name of the file to download.
-        """
-        local_file_path = os.path.join(self.args.glonet_data_dir, filename)
-        glonet_s3_filepath = os.path.join(
-            self.dc_config['s3_glonet_folder'],
-            filename
+        transf_glorys = CustomTransforms(
+            transform_name="glorys_to_glonet",
+            dict_rename=DICT_RENAME_CMEMS,
+            list_vars=LIST_VARS_GLONET,
+            depth_coord_vals=GLONET_DEPTH_VALS,
+            interp_ranges = RANGES_GLONET,
+            weights_path=self.args.weights_path,
+        )
+        self.args.dclogger.info("Creating datasets.")
+        dataset_glonet = GlonetDataset(
+            conf_args=self.args,
+            root_data_dir= glonet_data_dir,
+            list_dates=self.args.list_glonet_start_dates,
+            transform_fct=None,
         )
 
-        download_s3_file(
-            s3_client=self.args.s3_client,
-            bucket_name=self.dc_config['glonet_s3_bucket'],
-            file_name=glonet_s3_filepath,
-            local_file_path=local_file_path,
-            dclogger=self.args.dc1_logger,
-            exception_handler=self.args.exception_handler,
+        dataset_glorys = CmemsGlorysDataset(
+            conf_args=self.args,
+            root_data_dir= glorys_data_dir,
+            cmems_product_name=self.args.glorys_cmems_product_name,
+            cmems_file_prefix="mercatorglorys",
+            list_dates=self.args.list_glonet_start_dates,
+            transform_fct=transf_glorys,
+            save_after_preprocess=False,
+            file_format="zarr",
+        )
+        # 1. Chargement des données de référence et des prédictions avec DatasetLoader
+        glonet_vs_glorys_loader = DatasetLoader(
+            pred_dataset=dataset_glonet,
+            ref_dataset=dataset_glorys
         )
 
-    def download_glorys_files(self, list_glonet_files: List[str]):
-        """Download Glorys files from CMEMS.
+        # 3. Exécution de l’évaluation sur plusieurs modèles
+        evaluator = Evaluator(
+            self.args, 
+            dask_cluster=dask_cluster, metrics=None,
+            data_container={'glonet': glonet_vs_glorys_loader},
+        )
 
-        Args:
-            list_glonet_files (List[str]): list of the files to download.
-        """
-        for filename in list_glonet_files:
-            local_file_path = os.path.join(self.args.glorys_data_dir, filename)
-            download_s3_file(
-                self.args.s3_client,
-                self.dc_config['glonet_s3_bucket'],
-                filename,
-                local_file_path,
-                self.args.dc1_logger,
-                self.args.exception_handler,
-            )
+        metrics = [
+            MetricComputer(
+                dc_logger=self.args.dclogger,
+                exc_handler=self.args.exception_handler,
+                metric_name='rmse', plot_result=False,
+            ),
+
+            MetricComputer(
+                dc_logger=self.args.dclogger,
+                exc_handler=self.args.exception_handler,
+                metric_name='energy_cascad',
+                plot_result=False,
+                var="uo", depth=2,
+            ),
+        ]
+        ''' TODO : check error on oceanbench : why depth = 0 ? -> crash
+            MetricComputer(
+                dc_logger=test_vars.dclogger,
+                exc_handler=test_vars.exception_handler,
+                metric_name='euclid_dist',
+                plot_result=True,
+                minimum_latitude=0,
+                maximum_latitude=10,
+                minimum_longitude=0,
+                maximum_longitude=10,
+            ),'''
+        
+        evaluator.set_metrics(metrics)
+        self.args.dclogger.info("Run computation of metrics.")
+        results = evaluator.evaluate()
+
+        self.args.dclogger.info(f"Computed metrics : {results}")
+
