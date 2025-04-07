@@ -8,7 +8,7 @@ import sys
 
 from dctools.utilities.args_config import load_args_and_config
 
-from dc1.evaluation.glorys_evaluation import GlorysEvaluation
+from dc1.evaluation.evaluation import GlorysEvaluation
 
 
 def main() -> int:

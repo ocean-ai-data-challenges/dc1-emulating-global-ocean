@@ -4,23 +4,15 @@
 """Evaluator class using Glorys forecasts as reference."""
 
 from argparse import Namespace
-import os
-from pathlib import Path
-from typing import Dict, List
-
-from dask.distributed import Client
 
 from dctools.data.dataloader import DatasetLoader
 from dctools.data.dataset import CmemsGlorysDataset, GlonetDataset
-#from dctools.dcio.loader import FileLoader
-#from dctools.dcio.saver import DataSaver
 from dctools.metrics.evaluator import Evaluator
 from dctools.metrics.metrics import MetricComputer
 from dctools.data.transforms import CustomTransforms
 from dctools.utilities.init_dask import setup_dask
 from dctools.utilities.xarray_utils import DICT_RENAME_CMEMS,\
     LIST_VARS_GLONET, RANGES_GLONET, GLONET_DEPTH_VALS
-
 
 
 class GlorysEvaluation:
@@ -90,7 +82,7 @@ class GlorysEvaluation:
 
         # 3. Exécution de l’évaluation sur plusieurs modèles
         evaluator = Evaluator(
-            self.args, 
+            self.args,
             dask_cluster=dask_cluster, metrics=None,
             data_container={'glonet': glonet_vs_glorys_loader},
         )
@@ -121,7 +113,7 @@ class GlorysEvaluation:
                 minimum_longitude=0,
                 maximum_longitude=10,
             ),'''
-        
+
         evaluator.set_metrics(metrics)
         self.args.dclogger.info("Run computation of metrics.")
         results = evaluator.evaluate()
