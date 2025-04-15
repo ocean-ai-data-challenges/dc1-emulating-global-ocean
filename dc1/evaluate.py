@@ -58,12 +58,5 @@ def main() -> int:
         # Error = non-zero return code
         return 1
 
-    """except Exception as err:
-        # raise Exception("Unhandled exception.")
-        print(f"Unhandled exception: {err}.")
-        # Error = non-zero return code
-        return 1"""
-
-
 if __name__ == "__main__":
     sys.exit(main())
