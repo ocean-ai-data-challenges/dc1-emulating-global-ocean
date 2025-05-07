@@ -4,15 +4,41 @@
 """Evaluator class using Glorys forecasts as reference."""
 
 from argparse import Namespace
+import os
 
-from dctools.data.dataloader import DatasetLoader
-from dctools.data.dataset import CmemsGlorysDataset, GlonetDataset
+from loguru import logger
+import pandas as pd
+
+from dctools.data.connection.config import (
+    S3ConnectionConfig,
+    WasabiS3ConnectionConfig,
+    CMEMSConnectionConfig,
+    LocalConnectionConfig,
+    GlonetConnectionConfig
+)
+#from dctools.data.connection.connection_manager import (
+#    S3Manager,
+#    CMEMSManager,
+#)
+#from dctools.data.datasets.factory import DatasetFactory
+from dctools.data.datasets.dataset import RemoteDataset
+from dctools.data.datasets.dataset import DatasetConfig
+from dctools.data.datasets.dataset import RemoteDataset, LocalDataset
+from dctools.data.datasets.dataloader import EvaluationDataloader
+from dctools.data.datasets.dataset_manager import MultiSourceDatasetManager
+#from dctools.data.datasets.dc_catalog import DatasetCatalog
+from dctools.data.transforms import CustomTransforms
 from dctools.metrics.evaluator import Evaluator
 from dctools.metrics.metrics import MetricComputer
-from dctools.data.transforms import CustomTransforms
+#from dctools.processing.cmems_data import extract_dates_from_filename
 from dctools.utilities.init_dask import setup_dask
-from dctools.utilities.xarray_utils import DICT_RENAME_CMEMS,\
-    LIST_VARS_GLONET, RANGES_GLONET, GLONET_DEPTH_VALS
+from dctools.utilities.file_utils import load_config_file
+from dctools.utilities.xarray_utils import (
+    DICT_RENAME_CMEMS,
+    LIST_VARS_GLONET,
+    RANGES_GLONET,
+    GLONET_DEPTH_VALS,
+)
 
 
 class GlorysEvaluation:
@@ -25,6 +51,159 @@ class GlorysEvaluation:
             aruguments (str): Namespace with config.
         """
         self.args = arguments
+
+    def filter_data(
+        self, manager: MultiSourceDatasetManager
+    ):
+        # Appliquer les filtres temporels
+        manager.filter_all_by_date(
+            start=pd.to_datetime(self.args.start_times[0]),
+            end=pd.to_datetime(self.args.end_times[0]),
+        )
+        # Appliquer les filtres spatiaux
+        manager.filter_all_by_bbox(
+            bbox=(self.args.min_lon, self.args.min_lat, self.args.max_lon, self.args.max_lat)
+        )
+        # Appliquer les filtres sur les variables
+        manager.filter_all_by_variable(variables=self.args.target_vars)
+        return manager
+
+    def setup_transforms(self):
+        """Fixture pour configurer les transformations."""
+        # Configurer les transformations
+        glonet_transform = CustomTransforms(
+            transform_name="glorys_to_glonet",
+            weights_path=self.args.regridder_weights,
+            depth_coord_vals=GLONET_DEPTH_VALS,
+            interp_ranges=RANGES_GLONET,
+        )
+        # Configurer les transformations
+        """pred_transform = CustomTransforms(
+            transform_name="rename_subset_vars",
+            dict_rename={"longitude": "lon", "latitude": "lat"},
+            list_vars=["uo", "vo", "zos"],
+        )
+
+        ref_transform = CustomTransforms(
+            transform_name="interpolate",
+            interp_ranges={"lat": np.arange(-10, 10, 0.25), "lon": np.arange(-10, 10, 0.25)},
+        )"""
+        return {"glonet": glonet_transform}
+
+
+    def check_dataloader(
+        self,
+        dataloader: EvaluationDataloader,
+    ):
+        for batch in dataloader:
+            # Vérifier que le batch contient les clés attendues
+            assert "pred_data" in batch[0]
+            assert "ref_data" in batch[0]
+            # Vérifier que les données sont de type str (paths)
+            assert isinstance(batch[0]["pred_data"], str)
+            if batch[0]["ref_data"]:
+                assert isinstance(batch[0]["ref_data"], str)
+
+    def setup_dataset_manager(self) -> None:
+
+        glorys_dataset_name = "glorys"
+        #glonet_dataset_name = "glonet"
+        glonet_wasabi_dataset_name = "glonet_wasabi"
+        glorys_catalog_path = os.path.join(
+            self.args.catalog_dir, glorys_dataset_name + ".json"
+        )
+        #glonet_catalog_path = os.path.join(
+        #    test_config.catalog_dir, glonet_dataset_name + ".json"
+        #)
+        glonet_wasabi_catalog_path = os.path.join(
+            self.args.catalog_dir, glonet_wasabi_dataset_name + ".json"
+        )
+
+        # Configurer les datasets
+        # Glorys
+        glorys_connection_config = CMEMSConnectionConfig(
+            local_root=self.args.glorys_data_dir,
+            dataset_id=self.args.glorys_cmems_product_name,
+            max_samples=self.args.max_samples,
+        )
+        if os.path.exists(glorys_catalog_path):
+            # Load dataset metadata from catalog
+            glorys_config = DatasetConfig(
+                alias=glorys_dataset_name,
+                connection_config=glorys_connection_config,
+                catalog_options={"catalog_path": glorys_catalog_path}
+            )
+        else:
+            # create dataset
+            glorys_config = DatasetConfig(
+                alias=glorys_dataset_name,
+                connection_config=glorys_connection_config,
+            )
+        # Création du dataset
+        glorys_dataset = RemoteDataset(glorys_config)
+
+
+
+        # Glonet (source Wasabi)
+        glonet_wasabi_connection_config = WasabiS3ConnectionConfig(
+            local_root=self.args.glonet_data_dir,
+            bucket=self.args.wasabi_bucket,
+            bucket_folder=self.args.wasabi_glonet_folder,
+            key=self.args.wasabi_key,
+            secret_key=self.args.wasabi_secret_key,
+            endpoint_url=self.args.wasabi_endpoint_url,
+            max_samples=self.args.max_samples,
+        )
+        if os.path.exists(glonet_wasabi_catalog_path):
+            glonet_wasabi_config = DatasetConfig(
+                alias=glonet_wasabi_dataset_name,
+                connection_config=glonet_wasabi_connection_config,
+                catalog_options={"catalog_path": glonet_wasabi_catalog_path},
+            )
+        else:
+            glonet_wasabi_config = DatasetConfig(
+                alias=glonet_wasabi_dataset_name,
+                connection_config=glonet_wasabi_connection_config,        
+            )
+        glonet_wasabi_dataset = RemoteDataset(glonet_wasabi_config)
+
+
+        # Glonet
+        '''glonet_connection_config = GlonetConnectionConfig(
+            local_root=args.glonet_data_dir,
+            endpoint_url=args.glonet_base_url,
+            max_samples=args.max_samples,
+        )
+        if os.path.exists(glonet_catalog_path) and use_json_catalog:
+            glonet_config = DatasetConfig(
+                alias=glorys_dataset_name,
+                connection_config=glonet_connection_config,
+                catalog_options={"catalog_path": glonet_catalog_path}
+            )
+        else:
+            # create dataset
+            glonet_config = DatasetConfig(
+                alias=glonet_dataset_name,
+                connection_config=glonet_connection_config,
+            )
+        glonet_dataset = RemoteDataset(glonet_config)'''
+
+        manager = MultiSourceDatasetManager()
+
+        logger.debug(f"Setup datasets manager")
+        # Ajouter les datasets avec des alias
+        #manager.add_dataset("glonet", setup_datasets["glonet"])
+        manager.add_dataset("glorys", glorys_dataset)
+        manager.add_dataset("glonet_wasabi", glonet_wasabi_dataset)
+
+        # Construire le catalogue
+        logger.debug(f"Build catalog")
+        manager.build_catalogs()
+
+        manager.all_to_file(output_dir=self.args.catalog_dir)
+        manager = self.filter_data(manager)
+        return manager
+
 
     def run_eval(self) -> None:
         """Proceed to evaluation."""
@@ -44,64 +223,40 @@ class GlorysEvaluation:
         #        start_date, self.dc_config['glonet_n_days_forecast']
         #    )
 
+        dataset_manager = self.setup_dataset_manager()
         dask_cluster = setup_dask(self.args)
-        glonet_data_dir = self.args.glonet_data_dir
-        glorys_data_dir = self.args.glorys_data_dir
 
-        transf_glorys = CustomTransforms(
-            transform_name="glorys_to_glonet",
-            dict_rename=DICT_RENAME_CMEMS,
-            list_vars=LIST_VARS_GLONET,
-            depth_coord_vals=GLONET_DEPTH_VALS,
-            interp_ranges = RANGES_GLONET,
-            weights_path=self.args.weights_path,
-        )
-        self.args.dclogger.info("Creating datasets.")
-        dataset_glonet = GlonetDataset(
-            conf_args=self.args,
-            root_data_dir= glonet_data_dir,
-            list_dates=self.args.list_glonet_start_dates,
-            transform_fct=None,
-        )
-
-        dataset_glorys = CmemsGlorysDataset(
-            conf_args=self.args,
-            root_data_dir= glorys_data_dir,
-            cmems_product_name=self.args.glorys_cmems_product_name,
-            cmems_file_prefix="mercatorglorys",
-            list_dates=self.args.list_glonet_start_dates,
-            transform_fct=transf_glorys,
-            save_after_preprocess=False,
-            file_format="zarr",
-        )
-        # 1. Chargement des données de référence et des prédictions avec DatasetLoader
-        glonet_vs_glorys_loader = DatasetLoader(
-            pred_dataset=dataset_glonet,
-            ref_dataset=dataset_glorys
+        transforms = self.setup_transforms()
+        transform_glonet = transforms["glonet"]
+        # Créer un dataloader
+        """dataloader = manager.get_dataloader(
+            pred_alias="glonet",
+            ref_alias="glorys",
+            batch_size=8,
+            pred_transform=glonet_transform,
+            ref_transform=glonet_transform,
+        )"""
+        dataloader = dataset_manager.get_dataloader(
+            pred_alias="glonet_wasabi",
+            ref_alias=None,
+            batch_size=self.args.batch_size,
+            pred_transform=None,
+            ref_transform=None,
         )
 
-        # 3. Exécution de l’évaluation sur plusieurs modèles
-        evaluator = Evaluator(
-            self.args,
-            dask_cluster=dask_cluster, metrics=None,
-            data_container={'glonet': glonet_vs_glorys_loader},
-        )
+        # Vérifier le dataloader
+        self.check_dataloader(dataloader)
 
         metrics = [
-            MetricComputer(
-                dc_logger=self.args.dclogger,
-                exc_handler=self.args.exception_handler,
-                metric_name='rmse', plot_result=False,
-            ),
-
-            MetricComputer(
-                dc_logger=self.args.dclogger,
-                exc_handler=self.args.exception_handler,
-                metric_name='energy_cascad',
-                plot_result=False,
-                var="uo", depth=2,
-            ),
+            MetricComputer(metric_name="rmse"),
+            #MetricComputer(metric_name="euclid_dist"),
+            #MetricComputer(metric_name="energy_cascad"),
         ]
+        evaluator = Evaluator(
+            dask_cluster=dask_cluster,
+            metrics=metrics,
+            dataloader=dataloader,
+        )
         ''' TODO : check error on oceanbench : why depth = 0 ? -> crash
             MetricComputer(
                 dc_logger=test_vars.dclogger,
@@ -114,9 +269,15 @@ class GlorysEvaluation:
                 maximum_longitude=10,
             ),'''
 
-        evaluator.set_metrics(metrics)
-        self.args.dclogger.info("Run computation of metrics.")
         results = evaluator.evaluate()
 
-        self.args.dclogger.info(f"Computed metrics : {results}")
+        # Vérifier que les résultats existent
+        assert len(results) > 0
+
+        # Vérifier que chaque résultat contient les champs attendus
+        for result in results:
+            assert "date" in result
+            assert "metric" in result
+            assert "result" in result
+        logger.info(f"Test Results: {results}")
 
