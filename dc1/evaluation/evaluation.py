@@ -4,35 +4,21 @@
 """Evaluator class using Glorys forecasts as reference."""
 
 from argparse import Namespace
-import os
+from typing import Optional
 
+import geopandas as gpd
 from loguru import logger
 import pandas as pd
+from shapely import geometry
 
-from dctools.data.connection.config import (
-    S3ConnectionConfig,
-    WasabiS3ConnectionConfig,
-    CMEMSConnectionConfig,
-    LocalConnectionConfig,
-    GlonetConnectionConfig
-)
-#from dctools.data.connection.connection_manager import (
-#    S3Manager,
-#    CMEMSManager,
-#)
-#from dctools.data.datasets.factory import DatasetFactory
-from dctools.data.datasets.dataset import RemoteDataset
-from dctools.data.datasets.dataset import DatasetConfig
-from dctools.data.datasets.dataset import RemoteDataset, LocalDataset
+from dctools.data.datasets.dataset import get_dataset_from_config
 from dctools.data.datasets.dataloader import EvaluationDataloader
 from dctools.data.datasets.dataset_manager import MultiSourceDatasetManager
-#from dctools.data.datasets.dc_catalog import DatasetCatalog
+
 from dctools.data.transforms import CustomTransforms
 from dctools.metrics.evaluator import Evaluator
 from dctools.metrics.metrics import MetricComputer
-#from dctools.processing.cmems_data import extract_dates_from_filename
 from dctools.utilities.init_dask import setup_dask
-from dctools.utilities.file_utils import load_config_file
 from dctools.utilities.xarray_utils import (
     DICT_RENAME_CMEMS,
     LIST_VARS_GLONET,
@@ -53,7 +39,8 @@ class GlorysEvaluation:
         self.args = arguments
 
     def filter_data(
-        self, manager: MultiSourceDatasetManager
+        self, manager: MultiSourceDatasetManager,
+        filter_region: gpd.GeoSeries,
     ):
         # Appliquer les filtres temporels
         manager.filter_all_by_date(
@@ -61,8 +48,8 @@ class GlorysEvaluation:
             end=pd.to_datetime(self.args.end_times[0]),
         )
         # Appliquer les filtres spatiaux
-        manager.filter_all_by_bbox(
-            bbox=(self.args.min_lon, self.args.min_lat, self.args.max_lon, self.args.max_lat)
+        manager.filter_all_by_region(
+            region=filter_region
         )
         # Appliquer les filtres sur les variables
         manager.filter_all_by_variable(variables=self.args.target_vars)
@@ -106,22 +93,45 @@ class GlorysEvaluation:
 
     def setup_dataset_manager(self) -> None:
 
-        glorys_dataset_name = "glorys"
-        #glonet_dataset_name = "glonet"
+        '''glorys_dataset_name = "glorys"
+        glonet_dataset_name = "glonet"
         glonet_wasabi_dataset_name = "glonet_wasabi"
         glorys_catalog_path = os.path.join(
             self.args.catalog_dir, glorys_dataset_name + ".json"
         )
-        #glonet_catalog_path = os.path.join(
-        #    test_config.catalog_dir, glonet_dataset_name + ".json"
-        #)
+        glonet_catalog_path = os.path.join(
+            self.args.catalog_dir, glonet_dataset_name + ".json"
+        )
         glonet_wasabi_catalog_path = os.path.join(
             self.args.catalog_dir, glonet_wasabi_dataset_name + ".json"
-        )
+        )'''
 
+        for source in self.args.sources:
+            source_name = source['dataset']
+            if source_name == "glorys":
+                glorys_dataset = get_dataset_from_config(
+                    source,
+                    self.args.data_directory,
+                    self.args.catalog_dir,
+                    self.args.max_samples,
+                )
+            elif source_name == "glonet":
+                glonet_dataset = get_dataset_from_config(
+                    source,
+                    self.args.data_directory,
+                    self.args.catalog_dir,
+                    self.args.max_samples,
+                )
+            elif source_name == "glonet_wasabi":
+                glonet_wasabi_dataset = get_dataset_from_config(
+                    source,
+                    self.args.data_directory,
+                    self.args.catalog_dir,
+                    self.args.max_samples,
+                )
         # Configurer les datasets
         # Glorys
-        glorys_connection_config = CMEMSConnectionConfig(
+        '''glorys_connection_config = CMEMSConnectionConfig(
             local_root=self.args.glorys_data_dir,
             dataset_id=self.args.glorys_cmems_product_name,
             max_samples=self.args.max_samples,
@@ -140,12 +150,12 @@ class GlorysEvaluation:
                 connection_config=glorys_connection_config,
             )
         # Création du dataset
-        glorys_dataset = RemoteDataset(glorys_config)
+        glorys_dataset = RemoteDataset(glorys_config)'''
 
 
 
         # Glonet (source Wasabi)
-        glonet_wasabi_connection_config = WasabiS3ConnectionConfig(
+        '''glonet_wasabi_connection_config = WasabiS3ConnectionConfig(
             local_root=self.args.glonet_data_dir,
             bucket=self.args.wasabi_bucket,
             bucket_folder=self.args.wasabi_glonet_folder,
@@ -169,12 +179,12 @@ class GlorysEvaluation:
 
 
         # Glonet
-        '''glonet_connection_config = GlonetConnectionConfig(
-            local_root=args.glonet_data_dir,
-            endpoint_url=args.glonet_base_url,
-            max_samples=args.max_samples,
+        glonet_connection_config = GlonetConnectionConfig(
+            local_root=self.args.glonet_data_dir,
+            endpoint_url=self.args.glonet_base_url,
+            max_samples=self.args.max_samples,
         )
-        if os.path.exists(glonet_catalog_path) and use_json_catalog:
+        if os.path.exists(glonet_catalog_path):
             glonet_config = DatasetConfig(
                 alias=glorys_dataset_name,
                 connection_config=glonet_connection_config,
@@ -188,41 +198,47 @@ class GlorysEvaluation:
             )
         glonet_dataset = RemoteDataset(glonet_config)'''
 
+        filter_region = gpd.GeoSeries(geometry.Polygon((
+            (self.args.min_lon,self.args.min_lat),
+            (self.args.min_lon,self.args.max_lat),
+            (self.args.max_lon,self.args.min_lat),
+            (self.args.max_lon,self.args.max_lat),
+            (self.args.min_lon,self.args.min_lat),
+            )), crs="EPSG:4326")
+
         manager = MultiSourceDatasetManager()
 
         logger.debug(f"Setup datasets manager")
         # Ajouter les datasets avec des alias
-        #manager.add_dataset("glonet", setup_datasets["glonet"])
+        manager.add_dataset("glonet", glonet_dataset)
         manager.add_dataset("glorys", glorys_dataset)
         manager.add_dataset("glonet_wasabi", glonet_wasabi_dataset)
+
+        # Appliquer les filtres temporels
+        manager.filter_all_by_date(
+            start=pd.to_datetime(self.args.start_times[0]),
+            end=pd.to_datetime(self.args.end_times[0]),
+            #start=test_config.start_times[0],
+            #end=test_config.end_times[0],
+        )
+        # Appliquer les filtres spatiaux
+        manager.filter_all_by_region(
+            region=filter_region    #=(test_config.min_lon, test_config.min_lat, test_config.max_lon, test_config.max_lat)
+        )
+        # Appliquer les filtres sur les variables
+        manager.filter_all_by_variable(variables=self.args.target_vars)
 
         # Construire le catalogue
         logger.debug(f"Build catalog")
         manager.build_catalogs()
 
-        manager.all_to_file(output_dir=self.args.catalog_dir)
-        manager = self.filter_data(manager)
+        manager.all_to_json(output_dir=self.args.catalog_dir)
+        manager = self.filter_data(manager, filter_region)
         return manager
 
 
     def run_eval(self) -> None:
         """Proceed to evaluation."""
-        #list_start_dates = self.args['list_glonet_start_dates'].split(',')
-        '''path_glonet = "public/glonet_reforecast_2024/"
-        list_start_dates = ["2024-01-03", "2024-01-10", "2024-01-17", "2024-01-24", "2024-01-31",
-                           "2024-02-07", "2024-02-14", "2024-02-21", "2024-02-28", "2024-03-06",
-                           "2024-03-13", "2024-03-20", "2024-03-27", "2024-04-03", "2024-04-10",
-                           "2024-04-17", "2024-04-24", "2024-05-01", "2024-05-08", "2024-05-15",
-                           "2024-05-22", "2024-05-29", "2024-06-05", "2024-06-12", "2024-06-19",
-                           "2024-06-26", "2024-07-03", "2024-07-10", "2024-07-17" ]'''
-
-        #for start_date in list_start_dates:
-        #    self.args.dclogger.info(f"process Initial Date: {start_date}")
-
-        #    list_dates = get_dates_from_startdate(
-        #        start_date, self.dc_config['glonet_n_days_forecast']
-        #    )
-
         dataset_manager = self.setup_dataset_manager()
         dask_cluster = setup_dask(self.args)
 
@@ -237,7 +253,7 @@ class GlorysEvaluation:
             ref_transform=glonet_transform,
         )"""
         dataloader = dataset_manager.get_dataloader(
-            pred_alias="glonet_wasabi",
+            pred_alias="glonet",
             ref_alias=None,
             batch_size=self.args.batch_size,
             pred_transform=None,
