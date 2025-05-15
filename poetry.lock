@@ -927,7 +927,7 @@ optional = false
 python-versions = ">=3.11.0,<3.14.0"
 groups = ["custom"]
 files = []
-develop = true
+develop = false
 
 [package.dependencies]
 argopy = ">=1.0.0"
@@ -956,8 +956,10 @@ xbatcher = ">=0.4.0"
 zarr = ">=2.14.2,<3.0.0"
 
 [package.source]
-type = "directory"
-url = "../dc-tools"
+type = "git"
+url = "ssh://git@github.com/ppr-ocean-ia/dc-tools.git"
+reference = "main"
+resolved_reference = "9df95798d5a23c8bce632ab1489021bd039ad3fa"
 
 [[package]]
 name = "decorator"
@@ -5835,4 +5837,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11.0,<3.14.0"
-content-hash = "9804528ef7c48e5fc926797242ebf679683a815eed032c1868bf4eea20f34ba3"
+content-hash = "d3f2ed1595e224b75b63c5ea2477affb2ca271bab23b0688af4b57f477ca62be"

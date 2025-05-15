@@ -214,25 +214,12 @@ class GlorysEvaluation:
         manager.add_dataset("glorys", glorys_dataset)
         manager.add_dataset("glonet_wasabi", glonet_wasabi_dataset)
 
-        # Appliquer les filtres temporels
-        manager.filter_all_by_date(
-            start=pd.to_datetime(self.args.start_times[0]),
-            end=pd.to_datetime(self.args.end_times[0]),
-            #start=test_config.start_times[0],
-            #end=test_config.end_times[0],
-        )
-        # Appliquer les filtres spatiaux
-        manager.filter_all_by_region(
-            region=filter_region    #=(test_config.min_lon, test_config.min_lat, test_config.max_lon, test_config.max_lat)
-        )
-        # Appliquer les filtres sur les variables
-        manager.filter_all_by_variable(variables=self.args.target_vars)
-
         # Construire le catalogue
         logger.debug(f"Build catalog")
         manager.build_catalogs()
-
         manager.all_to_json(output_dir=self.args.catalog_dir)
+
+        # Appliquer les filtres temporels
         manager = self.filter_data(manager, filter_region)
         return manager
 
@@ -264,36 +251,26 @@ class GlorysEvaluation:
         self.check_dataloader(dataloader)
 
         metrics = [
-            MetricComputer(metric_name="rmse"),
-            #MetricComputer(metric_name="euclid_dist"),
-            #MetricComputer(metric_name="energy_cascad"),
+            MetricComputer(metric_name="rmsd"),
+            MetricComputer(metric_name="lagrangian"),
+            MetricComputer(metric_name="rmsd_geostrophic_currents"),
+            MetricComputer(metric_name="rmsd_mld"),
         ]
         evaluator = Evaluator(
             dask_cluster=dask_cluster,
             metrics=metrics,
             dataloader=dataloader,
         )
-        ''' TODO : check error on oceanbench : why depth = 0 ? -> crash
-            MetricComputer(
-                dc_logger=test_vars.dclogger,
-                exc_handler=test_vars.exception_handler,
-                metric_name='euclid_dist',
-                plot_result=True,
-                minimum_latitude=0,
-                maximum_latitude=10,
-                minimum_longitude=0,
-                maximum_longitude=10,
-            ),'''
 
         results = evaluator.evaluate()
 
         # Vérifier que les résultats existent
         assert len(results) > 0
 
-        # Vérifier que chaque résultat contient les champs attendus
+        # Vérifier que chaque résultat contient les champs attendus, afficher
         for result in results:
             assert "date" in result
             assert "metric" in result
             assert "result" in result
-        logger.info(f"Test Results: {results}")
+            logger.info(f"Test Result: {result}")
 
