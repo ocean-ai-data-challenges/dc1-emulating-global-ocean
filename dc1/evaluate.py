@@ -8,7 +8,7 @@ import sys
 
 from dctools.utilities.args_config import load_args_and_config
 
-from dc1.evaluation.evaluation import GlorysEvaluation
+from dc1.evaluation.evaluation import DC1Evaluation
 
 
 def main() -> int:
@@ -36,6 +36,7 @@ def main() -> int:
         vars(args)['glorys_data_dir'] = os.path.join(args.data_directory, 'glorys')'''
         vars(args)['regridder_weights'] = os.path.join(args.data_directory, 'weights')
         vars(args)['catalog_dir'] = os.path.join(args.data_directory, "catalogs")
+        vars(args)['result_dir'] = os.path.join(args.data_directory, "results")
 
 
         if os.path.exists(args.regridder_weights):
@@ -45,7 +46,7 @@ def main() -> int:
         #os.makedirs(args.glorys_data_dir, exist_ok=True)
         os.makedirs(args.catalog_dir, exist_ok=True)
 
-        evaluator_instance = GlorysEvaluation(args)
+        evaluator_instance = DC1Evaluation(args)
         evaluator_instance.run_eval()
         print("Evaluation has finished successfully.")
         return 0

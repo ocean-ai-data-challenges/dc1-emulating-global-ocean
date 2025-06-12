@@ -4,30 +4,30 @@
 """Evaluator class using Glorys forecasts as reference."""
 
 from argparse import Namespace
+import os
+import sys
 from typing import Optional
 
 import geopandas as gpd
 from loguru import logger
 import pandas as pd
 from shapely import geometry
+from torchvision import transforms
 
 from dctools.data.datasets.dataset import get_dataset_from_config
 from dctools.data.datasets.dataloader import EvaluationDataloader
 from dctools.data.datasets.dataset_manager import MultiSourceDatasetManager
 
-from dctools.data.transforms import CustomTransforms
 from dctools.metrics.evaluator import Evaluator
 from dctools.metrics.metrics import MetricComputer
 from dctools.utilities.init_dask import setup_dask
-from dctools.utilities.xarray_utils import (
-    DICT_RENAME_CMEMS,
-    LIST_VARS_GLONET,
+from dctools.data.coordinates import (
     RANGES_GLONET,
     GLONET_DEPTH_VALS,
 )
 
 
-class GlorysEvaluation:
+class DC1Evaluation:
     """Class to evaluate models on Glorys forecasts."""
 
     def __init__(self, arguments: Namespace) -> None:
@@ -52,30 +52,42 @@ class GlorysEvaluation:
             region=filter_region
         )
         # Appliquer les filtres sur les variables
-        manager.filter_all_by_variable(variables=self.args.target_vars)
+        #manager.filter_all_by_variable(variables=self.args.target_vars)
         return manager
 
-    def setup_transforms(self):
+    def setup_transforms(
+        self,
+        dataset_manager: MultiSourceDatasetManager,
+        aliases: list[str],
+    ):
         """Fixture pour configurer les transformations."""
-        # Configurer les transformations
-        glonet_transform = CustomTransforms(
-            transform_name="glorys_to_glonet",
-            weights_path=self.args.regridder_weights,
-            depth_coord_vals=GLONET_DEPTH_VALS,
-            interp_ranges=RANGES_GLONET,
-        )
-        # Configurer les transformations
-        """pred_transform = CustomTransforms(
-            transform_name="rename_subset_vars",
-            dict_rename={"longitude": "lon", "latitude": "lat"},
-            list_vars=["uo", "vo", "zos"],
-        )
+        transforms_dict = {}
+        if "jason3" in aliases:
+            logger.warning("Jason3 dataset is not available, skipping its transform setup.")
+            transforms_dict["jason3"] = dataset_manager.get_transform(
+                "standardize",
+                dataset_alias="jason3",
+            )
+        if "glonet" in aliases:
+            transforms_dict["glonet"] = dataset_manager.get_transform(
+                "standardize",
+                dataset_alias="glonet",
+            )
+            '''glonet_transform_1 = dataset_manager.get_transform(
+                "standardize",
+                dataset_alias="glonet",
+            )
+            glonet_transform_2 = dataset_manager.get_transform(
+                "glorys_to_glonet",
+                dataset_alias="glonet",
+                regridder_weights=self.args.regridder_weights,
+            )
+            transforms_dict["glonet"] = transforms.Compose([
+                glonet_transform_1,
+                glonet_transform_2,
+            ])'''
 
-        ref_transform = CustomTransforms(
-            transform_name="interpolate",
-            interp_ranges={"lat": np.arange(-10, 10, 0.25), "lon": np.arange(-10, 10, 0.25)},
-        )"""
-        return {"glonet": glonet_transform}
+        return transforms_dict
 
 
     def check_dataloader(
@@ -83,6 +95,7 @@ class GlorysEvaluation:
         dataloader: EvaluationDataloader,
     ):
         for batch in dataloader:
+            logger.debug(f"Batch: {batch}")
             # Vérifier que le batch contient les clés attendues
             assert "pred_data" in batch[0]
             assert "ref_data" in batch[0]
@@ -93,110 +106,25 @@ class GlorysEvaluation:
 
     def setup_dataset_manager(self) -> None:
 
-        '''glorys_dataset_name = "glorys"
-        glonet_dataset_name = "glonet"
-        glonet_wasabi_dataset_name = "glonet_wasabi"
-        glorys_catalog_path = os.path.join(
-            self.args.catalog_dir, glorys_dataset_name + ".json"
-        )
-        glonet_catalog_path = os.path.join(
-            self.args.catalog_dir, glonet_dataset_name + ".json"
-        )
-        glonet_wasabi_catalog_path = os.path.join(
-            self.args.catalog_dir, glonet_wasabi_dataset_name + ".json"
-        )'''
-
+        manager = MultiSourceDatasetManager()
+        datasets = {}
         for source in self.args.sources:
             source_name = source['dataset']
-            if source_name == "glorys":
-                glorys_dataset = get_dataset_from_config(
-                    source,
-                    self.args.data_directory,
-                    self.args.catalog_dir,
-                    self.args.max_samples,
-                )
-            elif source_name == "glonet":
-                glonet_dataset = get_dataset_from_config(
-                    source,
-                    self.args.data_directory,
-                    self.args.catalog_dir,
-                    self.args.max_samples,
-                )
-            elif source_name == "glonet_wasabi":
-                glonet_wasabi_dataset = get_dataset_from_config(
-                    source,
-                    self.args.data_directory,
-                    self.args.catalog_dir,
-                    self.args.max_samples,
-                )
-        # Configurer les datasets
-        # Glorys
-        '''glorys_connection_config = CMEMSConnectionConfig(
-            local_root=self.args.glorys_data_dir,
-            dataset_id=self.args.glorys_cmems_product_name,
-            max_samples=self.args.max_samples,
-        )
-        if os.path.exists(glorys_catalog_path):
-            # Load dataset metadata from catalog
-            glorys_config = DatasetConfig(
-                alias=glorys_dataset_name,
-                connection_config=glorys_connection_config,
-                catalog_options={"catalog_path": glorys_catalog_path}
-            )
-        else:
-            # create dataset
-            glorys_config = DatasetConfig(
-                alias=glorys_dataset_name,
-                connection_config=glorys_connection_config,
-            )
-        # Création du dataset
-        glorys_dataset = RemoteDataset(glorys_config)'''
+            if source_name != "glonet":
+                logger.warning(f"Dataset {source_name} is not supported yet, skipping.")
+                continue
+            kwargs = {}
+            kwargs["source"] = source
+            kwargs["root_data_folder"] = self.args.data_directory
+            kwargs["root_catalog_folder"] = self.args.catalog_dir
+            kwargs["max_samples"] = self.args.max_samples
 
-
-
-        # Glonet (source Wasabi)
-        '''glonet_wasabi_connection_config = WasabiS3ConnectionConfig(
-            local_root=self.args.glonet_data_dir,
-            bucket=self.args.wasabi_bucket,
-            bucket_folder=self.args.wasabi_glonet_folder,
-            key=self.args.wasabi_key,
-            secret_key=self.args.wasabi_secret_key,
-            endpoint_url=self.args.wasabi_endpoint_url,
-            max_samples=self.args.max_samples,
-        )
-        if os.path.exists(glonet_wasabi_catalog_path):
-            glonet_wasabi_config = DatasetConfig(
-                alias=glonet_wasabi_dataset_name,
-                connection_config=glonet_wasabi_connection_config,
-                catalog_options={"catalog_path": glonet_wasabi_catalog_path},
+            logger.debug(f"\n\nSetup dataset {source_name}\n\n")
+            datasets[source_name] = get_dataset_from_config(
+                **kwargs
             )
-        else:
-            glonet_wasabi_config = DatasetConfig(
-                alias=glonet_wasabi_dataset_name,
-                connection_config=glonet_wasabi_connection_config,        
-            )
-        glonet_wasabi_dataset = RemoteDataset(glonet_wasabi_config)
-
-
-        # Glonet
-        glonet_connection_config = GlonetConnectionConfig(
-            local_root=self.args.glonet_data_dir,
-            endpoint_url=self.args.glonet_base_url,
-            max_samples=self.args.max_samples,
-        )
-        if os.path.exists(glonet_catalog_path):
-            glonet_config = DatasetConfig(
-                alias=glorys_dataset_name,
-                connection_config=glonet_connection_config,
-                catalog_options={"catalog_path": glonet_catalog_path}
-            )
-        else:
-            # create dataset
-            glonet_config = DatasetConfig(
-                alias=glonet_dataset_name,
-                connection_config=glonet_connection_config,
-            )
-        glonet_dataset = RemoteDataset(glonet_config)'''
+            # Ajouter les datasets avec des alias
+            manager.add_dataset(source_name, datasets[source_name])
 
         filter_region = gpd.GeoSeries(geometry.Polygon((
             (self.args.min_lon,self.args.min_lat),
@@ -205,14 +133,6 @@ class GlorysEvaluation:
             (self.args.max_lon,self.args.max_lat),
             (self.args.min_lon,self.args.min_lat),
             )), crs="EPSG:4326")
-
-        manager = MultiSourceDatasetManager()
-
-        logger.debug(f"Setup datasets manager")
-        # Ajouter les datasets avec des alias
-        manager.add_dataset("glonet", glonet_dataset)
-        manager.add_dataset("glorys", glorys_dataset)
-        manager.add_dataset("glonet_wasabi", glonet_wasabi_dataset)
 
         # Construire le catalogue
         logger.debug(f"Build catalog")
@@ -227,50 +147,69 @@ class GlorysEvaluation:
     def run_eval(self) -> None:
         """Proceed to evaluation."""
         dataset_manager = self.setup_dataset_manager()
+        aliases = dataset_manager.datasets.keys()
         dask_cluster = setup_dask(self.args)
 
-        transforms = self.setup_transforms()
-        transform_glonet = transforms["glonet"]
-        # Créer un dataloader
-        """dataloader = manager.get_dataloader(
-            pred_alias="glonet",
-            ref_alias="glorys",
-            batch_size=8,
-            pred_transform=glonet_transform,
-            ref_transform=glonet_transform,
-        )"""
-        dataloader = dataset_manager.get_dataloader(
-            pred_alias="glonet",
-            ref_alias=None,
-            batch_size=self.args.batch_size,
-            pred_transform=None,
-            ref_transform=None,
-        )
+        dataloaders = {}
+        metrics_names = {}
+        metrics = {}
+        evaluators = {}
+        models_results = {}
+        transforms_dict = self.setup_transforms(dataset_manager, aliases)
 
-        # Vérifier le dataloader
-        self.check_dataloader(dataloader)
+        for alias in dataset_manager.datasets.keys():
+            # logger.debug(f"Transform: {transforms_dict.get(alias)}\n\n\n")
+            pred_transform = transforms_dict.get(alias)
+            if alias != 'glonet':
+                ref_transform = transforms_dict.get(alias)
+                ref_alias=alias
+            else:
+                ref_transform = None
+                ref_alias=None
+            dataloaders[alias] = dataset_manager.get_dataloader(
+                pred_alias=alias,
+                ref_alias=ref_alias,
+                batch_size=self.args.batch_size,
+                pred_transform=pred_transform,
+                ref_transform=ref_transform,
+            )
 
-        metrics = [
-            MetricComputer(metric_name="rmsd"),
-            MetricComputer(metric_name="lagrangian"),
-            MetricComputer(metric_name="rmsd_geostrophic_currents"),
-            MetricComputer(metric_name="rmsd_mld"),
-        ]
-        evaluator = Evaluator(
-            dask_cluster=dask_cluster,
-            metrics=metrics,
-            dataloader=dataloader,
-        )
+            # Vérifier le dataloader
+            self.check_dataloader(dataloaders[alias])
 
-        results = evaluator.evaluate()
+        for alias in dataset_manager.datasets.keys():
+            metrics_names[alias] = [
+                "rmsd",
+            ]
+            metrics_kwargs = {}
+            metrics_kwargs[alias] = {"add_noise": False,
+                "eval_variables": dataloaders[alias].eval_variables,
+            }
+            metrics[alias] = [
+                MetricComputer(metric_name=metric, **metrics_kwargs[alias])
+                for metric in metrics_names[alias]
+            ]
 
-        # Vérifier que les résultats existent
-        assert len(results) > 0
+            evaluators[alias] = Evaluator(
+                dask_cluster=dask_cluster,
+                metrics=metrics[alias],
+                dataloader=dataloaders[alias],
+                json_path=os.path.join(self.args.catalog_dir, f"test_results_{alias}.json"),
+            )
+
+            models_results[alias] = evaluators[alias].evaluate()
+
 
         # Vérifier que chaque résultat contient les champs attendus, afficher
-        for result in results:
-            assert "date" in result
-            assert "metric" in result
-            assert "result" in result
-            logger.info(f"Test Result: {result}")
+        for dataset_alias, results in models_results.items():
+            # Vérifier que les résultats existent
+            assert len(results) > 0
+            logger.info(f"\n\n\nResults for {dataset_alias}:")
+            for result in results:
+                assert "date" in result
+                assert "metric" in result
+                assert "result" in result
+                logger.info(f"Test Result: {result}")
+
+
 
