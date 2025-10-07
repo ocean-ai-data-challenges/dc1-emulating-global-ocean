@@ -15,7 +15,7 @@ docker build \
   --progress=plain \
   --no-cache \
   -f docker/Dockerfile \
-  -t ghcr.io/ocean-ai-data-challenges/dc-emulating-global-ocean:$IMAGE_TAG \
+  -t ghcr.io/ocean-ai-data-challenges/dc1-emulating-global-ocean:$IMAGE_TAG \
   .
 ```
 
@@ -25,11 +25,11 @@ docker build \
 - Start a container:
     - In console mode
 ```bash
-docker run -it --rm --name dc1 ghcr.io/ocean-ai-data-challenges/dc-emulating-global-ocean:$IMAGE_TAG bash
+docker run -it --rm --name dc1 ghcr.io/ocean-ai-data-challenges/dc1-emulating-global-ocean:$IMAGE_TAG bash
 ```
     - In graphical mode (jupyterlab)
 ```bash
-docker run --rm -p 8888:8888 --name dc1-lab ghcr.io/ocean-ai-data-challenges/dc-emulating-global-ocean:$IMAGE_TAG
+docker run --rm -p 8888:8888 --name dc1-lab ghcr.io/ocean-ai-data-challenges/dc1-emulating-global-ocean:$IMAGE_TAG
 ```
 - Test
 ```bash
@@ -49,7 +49,7 @@ docker rm --force dc1-lab
 ## Publish the image to the Github registry
 
 ```bash
-docker push ghcr.io/ocean-ai-data-challenges/dc-emulating-global-ocean:$IMAGE_TAG
+docker push ghcr.io/ocean-ai-data-challenges/dc1-emulating-global-ocean:$IMAGE_TAG
 ```
 
 ---
