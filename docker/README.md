@@ -7,7 +7,7 @@ Start the build
 
 - Set the tag (do not use `latest` or `stable`)
 ```bash
-export IMAGE_TAG=0.0.1
+export IMAGE_TAG=0.1.0
 ```
 - Build the image
 ```bash
@@ -58,24 +58,24 @@ docker push ghcr.io/ocean-ai-data-challenges/dc1-emulating-global-ocean:$IMAGE_T
 - stable
 ```bash
 # Define TAG used for stable
-export TAG_FOR_STABLE=0.0.1
+export TAG_FOR_STABLE=0.1.0
 
 # Pull image
-docker pull ghcr.io/ocean-ai-data-challenges/dc-emulating-global-ocean:$TAG_FOR_STABLE
+docker pull ghcr.io/ocean-ai-data-challenges/dc1-emulating-global-ocean:$TAG_FOR_STABLE
 # Tag it as stable
-docker tag ghcr.io/ocean-ai-data-challenges/dc-emulating-global-ocean:$TAG_FOR_STABLE ghcr.io/ocean-ai-data-challenges/dc-emulating-global-ocean:stable
+docker tag ghcr.io/ocean-ai-data-challenges/dc1-emulating-global-ocean:$TAG_FOR_STABLE ghcr.io/ocean-ai-data-challenges/dc1-emulating-global-ocean:stable
 # And push it
-docker push ghcr.io/ocean-ai-data-challenges/dc-emulating-global-ocean:stable
+docker push ghcr.io/ocean-ai-data-challenges/dc1-emulating-global-ocean:stable
 ```
 - latest
 ```bash
 # Define TAG used for latest 
-export TAG_FOR_LATEST=0.0.1
+export TAG_FOR_LATEST=0.1.0
 
 # Pull image
-docker pull ghcr.io/ocean-ai-data-challenges/dc-emulating-global-ocean:$TAG_FOR_LATEST
+docker pull ghcr.io/ocean-ai-data-challenges/dc1-emulating-global-ocean:$TAG_FOR_LATEST
 # Tag it as latest
-docker tag ghcr.io/ocean-ai-data-challenges/dc-emulating-global-ocean:$TAG_FOR_LATEST ghcr.io/ocean-ai-data-challenges/dc-emulating-global-ocean:latest
+docker tag ghcr.io/ocean-ai-data-challenges/dc1-emulating-global-ocean:$TAG_FOR_LATEST ghcr.io/ocean-ai-data-challenges/dc1-emulating-global-ocean:latest
 # And push it
-docker push ghcr.io/ocean-ai-data-challenges/dc-emulating-global-ocean:latest
+docker push ghcr.io/ocean-ai-data-challenges/dc1-emulating-global-ocean:latest
 ```
