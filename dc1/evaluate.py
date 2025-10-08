@@ -5,10 +5,11 @@
 
 import os
 import sys
+import yaml
+from argparse import Namespace
+from pathlib import Path
 
-from dctools.utilities.args_config import load_args_and_config
-
-from dc1.evaluation.evaluation import GlorysEvaluation
+from dc1.evaluation.evaluation import DC1Evaluation
 
 
 def main() -> int:
@@ -27,25 +28,54 @@ def main() -> int:
             'config',
             f"{config_name}.yaml",
         )
-        args = load_args_and_config(config_path)
-        if args is None:
-            print("Config loading failed.")
-            return 1
+        
+        # Load configuration directly from YAML file
+        with open(config_path, 'r') as f:
+            config_data = yaml.safe_load(f)
+        
+        # Create args namespace
+        args = Namespace()
+        
+        # Apply configuration values
+        for key, value in config_data.items():
+            setattr(args, key, value)
+        
+        # Setup data directory at the same level as the main directory
+        project_root = Path(__file__).parent.parent  # Go up from dc1/ to project root
+        # parent_dir = project_root.parent  # Go up one more level
+        data_directory = os.path.join(project_root, "dc1_output")
+        
+        # Setup paths
+        args.data_directory = str(data_directory)
+        args.logfile = os.path.join(data_directory, "logs", "dc1.log")
 
-        '''vars(args)['glonet_data_dir'] = os.path.join(args.data_directory, 'glonet')
-        vars(args)['glorys_data_dir'] = os.path.join(args.data_directory, 'glorys')'''
-        vars(args)['regridder_weights'] = os.path.join(args.data_directory, 'weights')
-        vars(args)['catalog_dir'] = os.path.join(args.data_directory, "catalogs")
+        # Create data directory and subdirectories
+        data_directory = Path(args.data_directory)
+        logs_dir = data_directory / "logs"
+        catalogs_dir = data_directory / "catalogs"
+        results_dir = data_directory / "results"
+        
+        # Create directories
+        data_directory.mkdir(parents=True, exist_ok=True)
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        catalogs_dir.mkdir(parents=True, exist_ok=True)
+        results_dir.mkdir(parents=True, exist_ok=True)
 
+        # Update args with additional paths
+        args.regridder_weights = str(data_directory / 'weights')
+        args.catalog_dir = str(catalogs_dir)
+        args.result_dir = str(results_dir)
 
+        # Clean up existing weights file if it exists
         if os.path.exists(args.regridder_weights):
             os.remove(args.regridder_weights)
 
-        #os.makedirs(args.glonet_data_dir, exist_ok=True)
-        #os.makedirs(args.glorys_data_dir, exist_ok=True)
-        os.makedirs(args.catalog_dir, exist_ok=True)
+        print(f"📁 Output directory: {args.data_directory}")
+        print(f"📁 Log file: {args.logfile}")
+        print(f"📁 Catalog directory: {args.catalog_dir}")
+        print(f"📁 Results directory: {args.result_dir}")
 
-        evaluator_instance = GlorysEvaluation(args)
+        evaluator_instance = DC1Evaluation(args)
         evaluator_instance.run_eval()
         print("Evaluation has finished successfully.")
         return 0

@@ -15,21 +15,44 @@ dynamic = [
 
 requires-python = ">=3.11.0,<3.14.0"
 dependencies = [
-    "zarr (>=2.17.2,<3.0.0)",
-    "xarray>=2024.2",
+    "argopy>=1.1.0",
+    "copernicusmarine>=2.2.2",
+    "dask>=2025.7.0",
     "dask[distributed]>=2025.01.0",
-    "numpy (>=1.25,<2.0.0)",
-    "dask[distributed]>=2025.01.0",
-    "mypy_boto3_s3",
-    "numcodecs (>=0.13.1,<0.16.0)",
+    "ftputil (>=5.1.0,<6.0.0)",
+    "geopy (>=2.4.1,<3.0.0)",
+    "geopandas (>=1.0.1,<2.0.0)",
+    "h5py>=3.13.0",
+    "json-handler>=2.0.1",
     "loguru>=0.7.3",
+    "memory-profiler>=0.61.0",
+    "netcdf4 (>=1.7.2,<2.0.0)",   # (>=1.5.8,<=1.6.5)",
+    "nbformat>=5.10.4",
+    "numpy (>=1.25,<2.0.0)",
+    "pangeo-forge-recipes (>=0.10.8)",
+    "python-json-logger>=3.3.0",
+    "pyarrow",
+    "pyinterp>=2025.3.0",
+    "rich>=13.9.4",
+    "s3fs>=2024.10.0",
+    "scipy (>=1.13.1,<2.0.0)",
+    "shapely>=1.8.4",
+    "tabulate",
+    "torch (>=2.6.0,<3.0.0)",
+    "torchvision (>=0.21.0,<0.22.0)",
+    "torchgeo>=0.6.2",
+    "xarray>=2024",
+    "xbatcher>=0.4.0",
+    "xskillscore>=0.0.27",
+    "PyYAML>=6.0.3",
+    "zarr (>=2.14.2,<3.0.0)"
 ]
 
 [project.urls]
 Repository = "https://github.com/ppr-ocean-ia/dc1-emulating-global-ocean/tree/main"
 
 [tool.poetry]
-version = "0.0.1"
+version = "0.1.0"
 name = "dc1"
 packages = [{ include = "dc1" }]
 
@@ -46,10 +69,10 @@ mypy = "*"
 
 
 [tool.poetry.group.custom.dependencies]
-oceanbench = { git = "https://github.com/ocean-ai-data-challenges/oceanbench.git", branch = "main" }
+oceanbench = { git = "https://github.com/aitmohandk/oceanbench.git", branch = "main" }
 xrpatcher = { git = "https://github.com/jejjohnson/xrpatcher.git", branch = "main" }
 xesmf = { git = "https://github.com/pangeo-data/xESMF.git", branch = "master" }
-dctools = {git = "https://github.com/ocean-ai-data-challenges/dc-tools.git", branch = "main"}
+dctools = {git = "https://github.com/ocean-ai-data-challenges/dc-tools.git", branch = "class4_metrics"}
 
 [tool.poetry.group.docs]
 optional = true
