@@ -1,0 +1,599 @@
+# This file lists variables used in configuring Data Challenge N° 1 : Ocean Emulation Challenge
+
+
+################################# WASABI S3 ACCESS KEYS ###############################
+##  WASABI credentials
+define: &WASABI_KEY "A10PTBP92GOXQW8OPE8G"
+define: &WASABI_SECRET_KEY "1C1Iscst7rfDnXp5eM8DtL7AkFiUAycINzctMEGQ" 
+############################# GENERAL DC PARAMETERS ###################################
+
+# DC1 is a 2-D surface-only challenge: predictions are evaluated at the surface
+# level only.  The ``standardize_to_surface`` transform is automatically applied
+# to every dataset by DC1Evaluation.  Do NOT change this to false.
+surface_only: true
+
+n_days_forecast: 10  # number of days to forecast (e.g., for selecting the relevant model data and matching with observations)
+n_days_interval: 7  # number of days in the interval for computing metrics (e.g., compute metrics every n_days_interval days)
+
+delta_time: 12   # delta time (hours) when matching observation data
+max_samples: 
+max_cache_files: 1000  # max files to store (older files are deleted)
+# Maximum number of individual task errors tolerated before the run is marked as
+# failed.  Must be 0 in evaluation mode: every observation file must be scored.
+max_task_errors: 0
+
+############################# LOGGING ###################################
+
+logging:
+  # Loguru level for console + (optional) logfile.
+  # Typical values: TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: INFO
+  # Set to false if you want a quiet console even when a logfile is enabled.
+  console: true
+  # Loguru format (leave empty to use default from dctools.utilities.args_config).
+  # format: "<green>{time:YYYY-MM-DD HH:mm:ss.SSS zz}</green> | <level>{level: <8}</level> | <yellow>Line {line: >4} ({file}):</yellow> <b>{message}</b>"
+  colorize: true
+  backtrace: false
+  diagnose: false
+  enqueue: true
+  # Standard-library logging level (affects e.g. dask.distributed logs)
+  python_level: WARNING
+
+############################# PARALLELIZATION ###################################
+
+obs_batch_size: 30  # batch size for observation datasets (SWOT, saral, etc.) — smaller to avoid driver-side bottleneck downloading/preprocessing thousands of files
+reduce_precision: true   # reduce precision of intermediate results to save memory (e.g., float32 instead of float64)
+restart_workers_per_batch: true   # restart workers after each batch to free up memory and avoid memory leaks
+cleanup_between_batches: true  # delete prefetched obs/pred files and shared zarrs after each batch to reclaim disk space
+
+# Relative memory safety trigger.
+# If max worker memory used increases too much vs a baseline, we trigger a restart.
+# Example: 0.30 => restart when max memory used is +30% above baseline.
+max_p_memory_increase: 0.50
+
+# Absolute memory safety trigger (in addition to baseline increase).
+# If any worker exceeds this fraction of its Dask memory_limit, we trigger a restart.
+# Example: 0.85 => restart when a worker goes above 85% of its limit.
+max_worker_memory_fraction: 0.60
+
+############################# PER-BINS SPATIAL RESOLUTION ###################################
+
+# Resolution (in degrees) for per-bin RMSD spatial breakdown.
+# A lower value gives finer maps but larger per_bins JSON files.
+# Examples: 1 → 1°×1° (64 800 bins), 5 → 5°×5° (2 592 bins), 10 → 10°×10° (648 bins)
+per_bins_resolution: 1
+
+############################# DATA FILTERS ###################################
+
+## start time
+start_time: "2024-01-01"
+#start_time: "2023-12-25"
+#start_time: "2022-12-15"
+## end time
+end_time: "2024-02-01"
+#end_time: "2024-03-15"
+#end_time: "2025-01-15"
+
+# Target region coordinates
+min_lon: -180
+max_lon: 180
+min_lat: -90
+max_lat: 90
+
+############################# TARGET COORDINATES ###################################
+
+# Target dimensions that prediction/reference datasets must conform to.
+# Use compact axis specs to avoid huge inline lists.
+target_dimensions:
+  lat: {start: -78, stop: 90, step: 0.25}
+  lon: {start: -180, stop: 180, step: 0.25}
+  # Standard depth levels (meters)
+  depth:
+    - 0.494025
+    - 47.37369
+    - 92.32607
+    - 155.8507
+    - 222.4752
+    - 318.1274
+    - 380.213
+    - 453.9377
+    - 541.0889
+    - 643.5668
+    - 763.3331
+    - 902.3393
+    - 1245.291
+    - 1684.284
+    - 2225.078
+    - 3220.82
+    - 3597.032
+    - 3992.484
+    - 4405.224
+    - 4833.291
+    - 5274.784
+
+# Optional surface-only variant.
+target_dimensions_surface:
+  lat: {start: -78, stop: 90, step: 0.25}
+  lon: {start: -180, stop: 180, step: 0.25}
+  depth: [0.494025]
+
+# Expected values for the forecast lead-time axis if present.
+# (Historically this was GLONET_TIME_VALS = range(0, 10)).
+target_time_values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+############################# DATASETS ###################################
+catalog_connection:
+  connection_type: "wasabi"
+  url: "https://s3.eu-west-2.wasabisys.com"
+  s3_bucket: "ppr-ocean-climat"
+  s3_folder: "catalogs/Wasabi"
+  s3_key: *WASABI_KEY
+  s3_secret_key: *WASABI_SECRET_KEY
+
+sources:  # lists all datasets used in the DC
+  - dataset: saral
+    # Per-dataset Dask sizing parameters (workers, threads, memory) to adapt 
+    # to the dataset size and optimize performance.
+    n_parallel_workers: 8
+    nthreads_per_worker: 2
+    memory_limit_per_worker: "4GB"
+    observation_dataset: true
+    metrics:
+      - "rmsd"
+    time_tolerance: 12   # time tolerance for matching with observations (hours)
+    config: "s3"
+    connection_type: "wasabi"
+    url: "https://s3.eu-west-2.wasabisys.com"
+    s3_bucket: "ppr-ocean-climat"
+    s3_folder: "DC2/ZARR/Saral"
+    s3_key: *WASABI_KEY
+    s3_secret_key: *WASABI_SECRET_KEY
+    file_pattern: "**/*.zarr"
+    ignore_geometry: true
+    keep_variables:
+    - "time"
+    - "lat"
+    - "lon"
+    #- "alt"
+    - "mean_topography"
+    #- "wind_speed_alt"
+    - "mdt"
+    #- "bathymetry"
+    - "i_num_pixel"
+    - "i_num_line"   # dimension variables
+    - "ssha"
+    eval_variables:
+    - "ssha"
+
+  # - dataset: glorys_cmems
+  #   n_parallel_workers: 8
+  #   nthreads_per_worker: 2
+  #   memory_limit_per_worker: "4GB"
+  #   observation_dataset: false
+  #   metrics:
+  #     - "rmsd"
+  #   config: "cmems"
+  #   connection_type:
+  #   cmems_product_name: "cmems_mod_glo_phy_myint_0.083deg_P1D-m"
+  #   file_pattern: "**/*.nc"
+  #   full_day_data: true
+  #   ignore_geometry: true
+  #   keep_variables:
+  #     - "so"
+  #     - "thetao"
+  #     - "uo"
+  #     - "vo"
+  #     - "zos"
+  #   eval_variables:
+  #     - "so"
+  #     - "thetao"
+  #     - "uo"
+  #     - "vo"
+  #     - "zos"
+
+  - dataset: glorys
+    n_parallel_workers: 6
+    nthreads_per_worker: 2
+    memory_limit_per_worker: "6GB"
+    observation_dataset: false
+    gridded_batch_size: 6  # small batches for 3D gridded data — 1 timestep per worker to avoid OOM
+    metrics:
+      - "rmsd"
+    config: "s3"
+    connection_type: "wasabi"
+    url: "https://s3.eu-west-2.wasabisys.com"
+    s3_bucket: "ppr-ocean-climat"
+    s3_folder: "DC2/ZARR/Glorys"
+    s3_key: *WASABI_KEY
+    s3_secret_key: *WASABI_SECRET_KEY
+    file_pattern: "**/*.zarr"
+    full_day_data: true
+    ignore_geometry: true
+    keep_variables:
+      - "salinity"
+      - "ssh"
+      - "temperature"
+      - "u_current"
+      - "v_current"
+      - "depth"
+      - "lat"
+      - "lon"
+      - "time"
+    eval_variables:
+      - "salinity"
+      - "ssh"
+      - "temperature"
+      - "u_current"
+      - "v_current"
+
+  - dataset: swot
+    n_parallel_workers: 5
+    nthreads_per_worker: 1
+    memory_limit_per_worker: "6GB"
+    observation_dataset: true
+    # SWOT swath files are large (several hundred MB uncompressed per file).
+    # Keep batches small to cap the per-batch file set that the driver must
+    # prefetch + preprocess.  Each batch covers obs_batch_size evaluations
+    # each needing ~time_tolerance×2 = 24 h of files.  With n_days_interval=7
+    # the 30 time windows are non-overlapping → ~30 × unique-files/day files
+    # are preprocessed at once on the driver.  10 tasks × ~20 files/day
+    # × 8 threads (DCTOOLS_PREP_WORKERS) keeps driver-side RAM below ~2 GB.
+    obs_batch_size: 10  # reduced from 30 to limit per-batch SWOT file count
+    metrics:
+      - "rmsd"
+    time_tolerance: 12   # tolerance for matching the observations (hours)
+    config: "s3"
+    connection_type: "wasabi"
+    url: "https://s3.eu-west-2.wasabisys.com"
+    s3_bucket: "ppr-ocean-climat"
+    s3_folder: "DC2/ZARR/Swot"
+    s3_key: *WASABI_KEY
+    s3_secret_key: *WASABI_SECRET_KEY
+    file_pattern: "**/*.zarr"
+    ignore_geometry: true
+    keep_variables:
+      - "num_pixels"
+      - "num_lines"
+      - "num_nadir"   # dimension variables
+      - "time"
+      - "latitude"
+      - "longitude"
+      - "mdt"
+      - "ssha_filtered"
+      #- "ssha_unfiltered"
+      #- "i_num_line"
+      #- "i_num_pixel"
+    eval_variables:
+      - "ssha_filtered"
+
+  - dataset: argo_velocities
+    n_parallel_workers: 8
+    nthreads_per_worker: 2
+    memory_limit_per_worker: "4GB"
+    observation_dataset: true
+    metrics:
+      - "rmsd"
+    time_tolerance: 12   # tolerance for matching the observations (hours)
+    config: "s3"
+    connection_type: "wasabi"
+    url: "https://s3.eu-west-2.wasabisys.com"
+    s3_bucket: "ppr-ocean-climat"
+    s3_folder: "DC2/Argo_velocities"
+    s3_key: *WASABI_KEY
+    s3_secret_key: *WASABI_SECRET_KEY
+    file_pattern: "**/*.nc"
+    ignore_geometry: true
+    keep_variables:
+    - "latitude" 
+    - "longitude"
+    - "depth"
+    - "n_points"
+    - "U"
+    - "V"
+    - "ID"
+    eval_variables:
+      - "U"
+      - "V"
+
+  - dataset: argo_profiles
+    n_parallel_workers: 5
+    nthreads_per_worker: 2
+    memory_limit_per_worker: "4GB"
+    observation_dataset: true
+    metrics:
+      - "rmsd"
+    time_tolerance: 12   # tolerance for matching the observations (hours)
+    config: "argopy"
+    connection_type: "argo"
+    # Configuration S3/Wasabi pour stocker les index mensuels ARGO
+    url: "https://s3.eu-west-2.wasabisys.com"
+    s3_bucket: "ppr-ocean-climat"
+    s3_folder: "catalogs/Wasabi"  # Dossier contenant argo_index/ sur S3
+    s3_key: *WASABI_KEY
+    s3_secret_key: *WASABI_SECRET_KEY
+    # base_path sera construit automatiquement: s3://ppr-ocean-climat/DC2/ARGO/argo_index
+    # Variables ARGO à extraire
+    variables:
+      - "PSAL"
+      - "TEMP"
+      - "PRES"
+    # Configuration des chunks Dask
+    chunks:
+      N_PROF: 2000
+    file_pattern: "**/*.json.zst"
+    ignore_geometry: true
+    keep_variables:
+      - "LATITUDE"
+      - "LONGITUDE"
+      - "TIME"
+      - "PSAL"
+      - "TEMP"
+      - "PRES"
+    eval_variables:
+      - "PSAL"
+      - "TEMP"
+
+  - dataset: jason3
+    n_parallel_workers: 8
+    nthreads_per_worker: 2
+    memory_limit_per_worker: "4GB"
+    observation_dataset: true
+    metrics:
+      - "rmsd"
+    interpolation_method: "pyinterp"
+    time_tolerance: 12   # time tolerance for matching with observations (hours)
+    metrics: 
+      - "rmsd"
+    groups:
+      - "ku"
+      - "data_01"
+    config: "s3"
+    connection_type: "wasabi"
+    url: "https://s3.eu-west-2.wasabisys.com"
+    s3_bucket: "ppr-ocean-climat"
+    s3_folder: "DC2/ZARR/Jason3"
+    s3_key: *WASABI_KEY
+    s3_secret_key: *WASABI_SECRET_KEY
+    file_pattern: "**/*.zarr"
+    ignore_geometry: true
+    keep_variables:
+      - "time"
+      #- "data_01__time_tai"
+      - "latitude"
+      - "longitude"
+      #- "data_01__depth_or_elevation"
+      - "data_01__ku__ssha"
+      - "data_01__mean_dynamic_topography"
+    eval_variables:
+      - "data_01__ku__ssha"
+
+
+
+  - dataset: SST_fields
+    n_parallel_workers: 8
+    nthreads_per_worker: 2
+    memory_limit_per_worker: "4GB"
+    observation_dataset: true
+    metrics:
+      - "rmsd"
+    time_tolerance: 12   # tolerance for matching the observations (hours)
+    config: "cmems"
+    connection_type:
+    cmems_product_name: "cmems_obs-sst_glo_phy_l3s_pir_P1D-m"
+    file_pattern: "**/*.nc"
+    ignore_geometry: true
+    keep_variables:
+    #- "crs"
+    - "sea_surface_temperature"
+    #- "or_number_of_pixels"
+    #- "sea_surface_temperature_stddev"
+    - "quality_level"
+    #- "adjusted_sea_surface_temperature"
+    eval_variables:
+    - "sea_surface_temperature"
+    #- "adjusted_sea_surface_temperature"
+
+  # - dataset: jason1
+  #   n_parallel_workers: 8
+  #   nthreads_per_worker: 2
+  #   memory_limit_per_worker: "4GB"
+  #   observation_dataset: true
+  #   metrics:
+  #     - "rmsd"
+  #   time_tolerance: 12   # tolerance for matching the observations (hours)
+  #   config: "s3"
+  #   connection_type: "wasabi"
+  #   url: "https://s3.eu-west-2.wasabisys.com"
+  #   s3_bucket: "ppr-ocean-climat"
+  #   s3_folder: "DC2/Nadir_altimetry/Jason-1"
+  #   s3_key: *WASABI_KEY
+  #   s3_secret_key: *WASABI_SECRET_KEY
+  #   file_pattern: "**/*.nc"
+  #   ignore_geometry: true
+  #   keep_variables:
+  #   - "time"
+  #   - "lat"
+  #   - "lon" 
+  #   #- "alt"
+  #   - "mean_sea_surface"
+  #   - "mean_topography"
+  #   #- "bathymetry"
+  #   #- "wind_speed_alt"
+  #   - "ssha"
+  #   eval_variables:
+  #   - "ssha"
+
+  # - dataset: jason2
+  #   n_parallel_workers: 8
+  #   nthreads_per_worker: 2
+  #   memory_limit_per_worker: "4GB"
+  #   observation_dataset: true
+  #   metrics:
+  #     - "rmsd"
+  #   time_tolerance: 12   # tolerance for matching the observations (hours)
+  #   config: "s3"
+  #   connection_type: "wasabi"
+  #   url: "https://s3.eu-west-2.wasabisys.com"
+  #   s3_bucket: "ppr-ocean-climat"
+  #   s3_folder: "DC2/Nadir_altimetry/Jason-2"
+  #   s3_key: *WASABI_KEY
+  #   s3_secret_key: *WASABI_SECRET_KEY
+  #   file_pattern: "**/*.nc"
+  #   ignore_geometry: true
+  #   keep_variables:
+  #   - "time"
+  #   - "lat"
+  #   - "lon" 
+  #   #- "surface_type"
+  #   #- "alt"
+  #   - "mean_sea_surface"
+  #   - "mean_topography"
+  #   #- "bathymetry"
+  #   #- "wind_speed_alt"
+  #   - "ssha"
+  #   eval_variables:
+  #   - "ssha"
+
+  - dataset: SSS_fields
+    n_parallel_workers: 8
+    nthreads_per_worker: 2
+    memory_limit_per_worker: "4GB"
+    observation_dataset: true
+    metrics:
+      - "rmsd"
+    time_tolerance: 12   # tolerance for matching the observations (hours)
+    groups:
+      - "ku"
+      - "data_01"
+    config: "s3"
+    connection_type: "wasabi"
+    url: "https://s3.eu-west-2.wasabisys.com"
+    s3_bucket: "ppr-ocean-climat"
+    s3_folder: "DC2/SSS_fields"
+    s3_key: *WASABI_KEY
+    s3_secret_key: *WASABI_SECRET_KEY
+    file_pattern: "**/*.nc"
+    ignore_geometry: true
+    keep_variables:
+    - "time"
+    #- "data_01__time_tai"
+    - "lat"
+    - "lon"
+    #- "data_01__altitude"
+    #- "data_01__mean_sea_surface_cnescls"
+    #- "data_01__wind_speed_alt"
+    #- "data_01__ku__ssha"
+    - Sea_Surface_Salinity_Rain_Corrected
+    eval_variables:
+    #- "data_01__ku__ssha"
+    - Sea_Surface_Salinity_Rain_Corrected
+
+  - dataset: glonet
+    n_parallel_workers: 8
+    nthreads_per_worker: 2
+    memory_limit_per_worker: "4GB"
+    observation_dataset: false
+    metrics:
+      - "rmsd"
+    config: "s3"
+    connection_type: "wasabi"
+    url: "https://s3.eu-west-2.wasabisys.com"
+    s3_bucket: "ppr-ocean-climat"
+    s3_folder: "DC2/ZARR/Glonet"
+    s3_key: *WASABI_KEY
+    s3_secret_key: *WASABI_SECRET_KEY
+    file_pattern: "**/*.zarr"
+    full_day_data: true
+    ignore_geometry: true
+    keep_variables:
+      - "so"
+      - "thetao"
+      - "uo"
+      - "vo"
+      - "zos"
+    eval_variables:
+      - "so"
+      - "thetao"
+      - "uo"
+      - "vo"
+      - "zos"
+
+
+  # - dataset: glonet_edito
+  #   n_parallel_workers: 8
+  #   nthreads_per_worker: 2
+  #   memory_limit_per_worker: "4GB"
+  #   observation_dataset: false
+  #   metrics:
+  #     - "rmsd"
+  #   config: "s3"
+  #   connection_type: "glonet"
+  #   url: "https://minio.dive.edito.eu"
+  #   s3_bucket: "project-oceanbench"
+  #   s3_folder: "public/glonet_full_2024"
+  #   file_pattern: "**/*.nc"
+  #   full_day_data: true
+  #   ignore_geometry: true
+  #   keep_variables:
+  #     - "so"
+  #     - "thetao"
+  #     - "uo"
+  #     - "vo"
+  #     - "zos"
+  #   eval_variables:
+  #     - "so"
+  #     - "thetao"
+  #     - "uo"
+  #     - "vo"
+  #     - "zos"
+
+  # - dataset: glonet_wasabi_2
+  #   n_parallel_workers: 8
+  #   nthreads_per_worker: 2
+  #   memory_limit_per_worker: "4GB"
+  #   observation_dataset: false
+  #   metrics:
+  #     - "rmsd"
+  #   config: "s3"
+  #   connection_type: "wasabi"
+  #   url: "https://s3.eu-west-2.wasabisys.com"
+  #   s3_bucket: "ppr-ocean-climat"
+  #   s3_folder: "DC1/Glonet_forecast"
+  #   s3_key: *WASABI_KEY
+  #   s3_secret_key: *WASABI_SECRET_KEY
+  #   file_pattern: "**/*.zarr"
+  #   ignore_geometry: true
+  #   keep_variables:
+  #     - "so"
+  #     - "thetao"
+  #     - "uo"
+  #     - "vo"
+  #     - "zos"
+  #   eval_variables:
+  #     - "so"
+  #     - "thetao"
+  #     - "uo"
+  #     - "vo"
+  #     - "zos"
+
+
+  #- dataset: amsr2
+    #observation_dataset: true
+    #metrics:
+    #  - "rmsd"
+    #time_tolerance: 12   # tolerance for matching the observations (hours)
+    #config: "s3"
+    #connection_type: "wasabi"
+    #url: "https://s3.eu-west-2.wasabisys.com"
+    #s3_bucket: "ppr-ocean-climat"
+    #s3_folder: "DC3/AMSR2"
+    #s3_key: *WASABI_KEY
+    #s3_secret_key: *WASABI_SECRET_KEY
+    #file_pattern: "**/*.zarr"
+    #keep_variables:
+    #- "time"
+    #- "latitude" 
+    #- "longitude"
+    #- "data_01__ku__ssha"
+    #eval_variables:
+    #- "data_01__ku__ssha"

@@ -3,96 +3,58 @@
 
 """Evaluation of a model against a given reference."""
 
-import os
 import sys
-import yaml
-from argparse import Namespace
 from pathlib import Path
 
-from dc1.evaluation.evaluation import DC1Evaluation
+# Ensure the repository root is importable when running as a script.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from dc1.evaluation.dc1 import DC1Evaluation  # noqa: E402
+from dctools.processing.runner import run_from_config  # noqa: E402
+from dctools.utilities.args_config import parse_arguments  # noqa: E402
+
+# Directory that holds the DC1-specific YAML configs shipped in this repo.
+DC1_CONFIG_DIR = PROJECT_ROOT / "dc1" / "config"
+
+# Default config file name (without .yaml).
+DEFAULT_CONFIG_NAME = "dc1_wasabi"
+
+# Absolute path to the leaderboard display config shipped with this repo.
+_LEADERBOARD_CONFIG_YAML = DC1_CONFIG_DIR / "leaderboard_config.yaml"
 
 
-def main() -> int:
-    """Main function.
+def _has_arg(argv: list[str], short: str, long: str) -> bool:
+    """Check whether *short* or *long* flag already appears in *argv*."""
+    return any(a == short or a == long or a.startswith(f"{long}=") for a in argv)
 
-    Args:
-        args (Namespace, optional): Namespace of parsed arguments.
 
-    Returns:
-        int: return code.
-    """
-    try:
-        config_name = "dc1"
-        config_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            'config',
-            f"{config_name}.yaml",
-        )
-        
-        # Load configuration directly from YAML file
-        with open(config_path, 'r') as f:
-            config_data = yaml.safe_load(f)
-        
-        # Create args namespace
-        args = Namespace()
-        
-        # Apply configuration values
-        for key, value in config_data.items():
-            setattr(args, key, value)
-        
-        # Setup data directory at the same level as the main directory
-        project_root = Path(__file__).parent.parent  # Go up from dc1/ to project root
-        # parent_dir = project_root.parent  # Go up one more level
-        data_directory = os.path.join(project_root, "dc1_output")
-        
-        # Setup paths
-        args.data_directory = str(data_directory)
-        args.logfile = os.path.join(data_directory, "logs", "dc1.log")
+def _resolve_dc1_config(cli_args) -> Path:
+    """Resolve the DC1 YAML config path from CLI args or default."""
+    config_name = getattr(cli_args, "config_name", None) or DEFAULT_CONFIG_NAME
+    return DC1_CONFIG_DIR / f"{config_name}.yaml"
 
-        # Create data directory and subdirectories
-        data_directory = Path(args.data_directory)
-        logs_dir = data_directory / "logs"
-        catalogs_dir = data_directory / "catalogs"
-        results_dir = data_directory / "results"
-        
-        # Create directories
-        data_directory.mkdir(parents=True, exist_ok=True)
-        logs_dir.mkdir(parents=True, exist_ok=True)
-        catalogs_dir.mkdir(parents=True, exist_ok=True)
-        results_dir.mkdir(parents=True, exist_ok=True)
 
-        # Update args with additional paths
-        args.regridder_weights = str(data_directory / 'weights')
-        args.catalog_dir = str(catalogs_dir)
-        args.result_dir = str(results_dir)
+def _inject_default_paths(argv: list[str]) -> None:
+    default_output_dir = PROJECT_ROOT / "dc1_output"
+    default_log_dir = default_output_dir / "logs"
+    default_logfile = default_log_dir / "dc1.log"
 
-        # Clean up existing weights file if it exists
-        if os.path.exists(args.regridder_weights):
-            os.remove(args.regridder_weights)
+    if not _has_arg(argv, "-d", "--data_directory"):
+        argv.extend(["--data_directory", str(default_output_dir)])
 
-        print(f"📁 Output directory: {args.data_directory}")
-        print(f"📁 Log file: {args.logfile}")
-        print(f"📁 Catalog directory: {args.catalog_dir}")
-        print(f"📁 Results directory: {args.result_dir}")
+    if not _has_arg(argv, "-l", "--logfile"):
+        default_log_dir.mkdir(parents=True, exist_ok=True)
+        argv.extend(["--logfile", str(default_logfile)])
 
-        evaluator_instance = DC1Evaluation(args)
-        evaluator_instance.run_eval()
-        print("Evaluation has finished successfully.")
-        return 0
-
-    except KeyboardInterrupt:
-        # raise Exception("Manual abort.")
-        print("Manual abort.")
-        # Error = non-zero return code
-        return 1
-    except SystemExit:
-        # SystemExit is raised when the user calls sys.exit()
-        # or when an error occurs in the argument parsing
-        # (e.g. --help)
-        # raise Exception("SystemExit.")
-        print("SystemExit.")
-        # Error = non-zero return code
-        return 1
 
 if __name__ == "__main__":
-    sys.exit(main())
+    _inject_default_paths(sys.argv)
+    cli_args = parse_arguments()
+    # Inject the leaderboard config path so DC1Evaluation can find it without
+    # relying on a relative path baked into dc1.py.
+    if not getattr(cli_args, "leaderboard_config", None):
+        vars(cli_args)["leaderboard_config"] = str(_LEADERBOARD_CONFIG_YAML)
+    config_path = _resolve_dc1_config(cli_args)
+    sys.exit(run_from_config(config_path, evaluation_cls=DC1Evaluation, cli_args=cli_args))
