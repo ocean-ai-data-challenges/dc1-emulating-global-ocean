@@ -246,3 +246,63 @@ progress if it outperforms GloNet on at least one of the evaluation metrics.
 | SWOT | Wide-swath satellite | 2-D surface (2-D grid) | Filtered SSHA | 2022 → present |
 | Argo profiles | In-situ floats | 2-D surface (point) | SST, SSS | 2000 → present |
 | Argo velocities | In-situ floats | Parking depth (~1 000 m) | U, V | 2000 → present (inactive) |
+
+---
+
+## Accessing the data with Python
+
+All evaluation datasets are stored as Zarr on a Wasabi S3 bucket and fetched automatically
+by the evaluation pipeline. The examples below show how to open them interactively for
+exploration and model development.
+
+### GLORYS12 reanalysis
+
+GLORYS12 is publicly available on the Copernicus Marine Service:
+
+```python
+import xarray as xr
+
+# Via Copernicus Marine (requires copernicusmarine credentials)
+import copernicusmarine
+ds = copernicusmarine.open_dataset(
+    dataset_id="cmems_mod_glo_phy_my_0.083deg_P1D-m",
+    variables=["zos", "thetao", "so", "uo", "vo"],
+    minimum_longitude=-180, maximum_longitude=180,
+    minimum_latitude=-78, maximum_latitude=90,
+    start_datetime="2024-01-01",
+    end_datetime="2024-01-10",
+)
+# For DC1, extract surface level only:
+ds_surface = ds.isel(depth=0)
+print(ds_surface)
+# <xarray.Dataset>
+# Dimensions:  (time: 10, latitude: 2041, longitude: 4320)
+# Data variables:
+#     zos        (time, latitude, longitude)  float32 …
+#     thetao     (time, latitude, longitude)  float32 …   ← surface only
+#     so         (time, latitude, longitude)  float32 …   ← surface only
+#     uo         (time, latitude, longitude)  float32 …   ← surface only
+#     vo         (time, latitude, longitude)  float32 …   ← surface only
+```
+
+### GloNet baseline (DC1 Wasabi S3)
+
+```python
+import s3fs
+import xarray as xr
+
+fs = s3fs.S3FileSystem(
+    key="A10PTBP92GOXQW8OPE8G",
+    secret="1C1Iscst7rfDnXp5eM8DtL7AkFiUAycINzctMEGQ",
+    client_kwargs={"endpoint_url": "https://s3.eu-west-2.wasabisys.com"},
+)
+
+# Open a single emulation date (surface level)
+store = s3fs.S3Map(root="ppr-ocean-climat/DC2/ZARR/Glonet/2024-01-03.zarr", s3=fs)
+ds = xr.open_zarr(store)
+# For DC1, extract surface level only:
+ds_surface = ds.isel(depth=0)
+print(ds_surface)
+# <xarray.Dataset>
+# Dimensions:  (time: 10, lat: 672, lon: 1440)
+```
