@@ -177,6 +177,23 @@ The pipeline will:
 4. Compute metrics (RMSD, geostrophic current RMSD)
 5. Write results to `dc1_output/results/results_<MODEL_NAME>.json`
 
+> **Tip — resuming interrupted runs:** the configuration option `resume: true` (enabled
+> by default) lets the pipeline skip already-completed batches when restarted after a
+> crash or interruption.
+
+### Configuration
+
+The pipeline is configured via `dc1/config/dc1_wasabi.yaml`. Key settings include:
+
+- **Parallelism presets** (`parallelism_presets` and `voluminous_parallelism_presets`)
+  controlling Dask worker count, memory limits, batch sizes, and download concurrency.
+- **Memory safety** (`restart_workers_per_batch`, `cleanup_between_batches`,
+  `max_worker_memory_fraction`) to handle long runs on memory-constrained machines.
+- **Resume** (`resume: true`) to skip already-completed batches on restart.
+
+See the [evaluation documentation](https://dc1-emulating-global-ocean.readthedocs.io/en/latest/content/evaluation.html#configuration-profiles)
+for details on tuning these presets for your hardware.
+
 ### 4. Inspect the DC1 specification
 
 ```bash
@@ -211,8 +228,8 @@ for any questions about submission.
 
 ```
 dc1/                  # Core package
-  config/             # YAML configurations (Wasabi S3)
-  evaluation/         # DC1-specific evaluation logic
+  config/             # YAML configuration (dc1_wasabi.yaml)
+  evaluation/         # DC1-specific evaluation logic (surface-only)
   evaluate.py         # CLI: run evaluation
   submit.py           # CLI: validate & submit
 docker/               # Dockerfile & conda environment
