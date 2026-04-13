@@ -65,7 +65,7 @@ class DC1Evaluation(BaseDCEvaluation):
         else:
             self.dataset_references = {
                 "glonet": [
-                    "argo_profiles", "glorys", "jason3", "saral",  # "swot", #"argo_velocities",
+                    "argo_profiles", "glorys", "jason3", "saral", "swot", #"argo_velocities",
                     # "SSS_fields", "SST_fields",
                 ],
             }

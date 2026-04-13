@@ -88,6 +88,66 @@ tables comparing all submitted models against the GloNet baseline.
 
 ---
 
+## Configuration profiles
+
+The YAML configuration file `dc1/config/dc1_wasabi.yaml` controls all pipeline
+behaviour: S3 connection, parallelism, memory safety, and dataset definitions.
+
+### Parallelism presets
+
+Two groups of presets are defined, each with three levels (`low`, `medium`, `high`).
+The active level is set via a YAML anchor (`&PARALLEL` or `&PARALLEL_VOLUMINOUS`)
+and can be switched by moving the anchor:
+
+```yaml
+# Standard datasets (SARAL, Jason-3, Argo, …)
+parallelism_presets:
+  medium: &PARALLEL                     # ◄ active level
+    obs_batch_size: 30
+    n_parallel_workers: 6
+    nthreads_per_worker: 2
+    memory_limit_per_worker: "3GB"
+    download_workers: 16
+
+# Heavy datasets (GLORYS gridded, SWOT wide-swath)
+voluminous_parallelism_presets:
+  medium: &PARALLEL_VOLUMINOUS          # ◄ active level
+    obs_batch_size: 24
+    n_parallel_workers: 4
+    nthreads_per_worker: 2
+    memory_limit_per_worker: "4GB"
+    download_workers: 4
+    gridded_batch_size: 6
+```
+
+Each dataset source merges one of these presets via `<<: *PARALLEL` or
+`<<: *PARALLEL_VOLUMINOUS` and may override individual keys (e.g. SWOT
+uses `n_parallel_workers: 3`, `c_lib_threads: 2`).
+
+### Memory management
+
+| Key | Default | Description |
+|---|---|---|
+| `reduce_precision` | `true` | Store intermediate results in float32 to halve memory |
+| `restart_workers_per_batch` | `true` | Restart Dask workers between batches to reclaim leaked memory |
+| `cleanup_between_batches` | `true` | Delete prefetched files after each batch to free disk space |
+| `max_worker_memory_fraction` | `0.65` | Trigger worker restart when managed memory exceeds this fraction |
+
+### Resuming interrupted runs
+
+Setting `resume: true` enables **checkpoint/resume**: the pipeline skips
+already-completed batch result files on restart. This is essential for
+long-running evaluations that may be interrupted by OOM kills or transient
+network errors.
+
+### Cluster lifecycle
+
+The Dask cluster is **shut down automatically** after all evaluation batches
+complete and before post-processing (results consolidation + leaderboard
+generation), freeing worker RAM for the driver.
+
+---
+
 ## Evaluation period and temporal setup
 
 | Parameter | Value |

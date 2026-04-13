@@ -39,14 +39,15 @@
   <div class="map-controls">
     <div class="control-group">
       <label for="select-model">Model</label>
-      <select id="select-model"><option value="glonet">glonet</option></select>
+      <select id="select-model"><option value="glonet">GloNet (reference)</option></select>
     </div>
     <div class="control-group">
       <label for="select-ref">Reference Dataset</label>
       <select id="select-ref"><option value="argo_profiles">Argo Profiles</option>
 <option value="glorys">Glorys</option>
 <option value="jason3">Jason3</option>
-<option value="saral">Saral</option></select>
+<option value="saral">Saral</option>
+<option value="swot">Swot</option></select>
     </div>
     <div class="control-group">
       <label for="select-variable">Variable</label>
@@ -58,7 +59,7 @@
     </div>
     <div class="control-group">
       <label for="select-metric">Metric</label>
-      <select id="select-metric"><option value="rmse">RMSE</option></select>
+      <select id="select-metric"><option value="rmse" selected>Root Mean Squared Error (RMSE)</option></select>
     </div>
     <div class="control-group">
       <label for="select-lead">Lead Day</label>
@@ -72,7 +73,7 @@
 <option value="7">Day 8</option>
 <option value="8">Day 9</option>
 <option value="9">Day 10</option>
-<option value="all">All days (composite)</option></select>
+<option value="all" selected>All days (composite)</option></select>
     </div>
     <div class="control-group" id="depth-group" style="display:none;">
       <label for="select-depth">Depth</label>
@@ -109,8 +110,8 @@
 
   // --- Config ---
   const DEPTH_BINS = {};
-  const REF_VARIABLES = {"argo_profiles": ["salinity", "temperature"], "glorys": ["salinity", "ssh", "temperature"], "jason3": ["ssh"], "saral": ["ssh"]};
-  const REF_TYPE_MAP = {"argo_profiles": "observation", "glorys": "gridded", "jason3": "observation", "saral": "observation"};
+  const REF_VARIABLES = {"argo_profiles": ["salinity", "temperature"], "glorys": ["salinity", "ssh", "temperature"], "jason3": ["ssh"], "saral": ["ssh"], "swot": ["ssh"]};
+  const REF_TYPE_MAP = {"argo_profiles": "observation", "glorys": "gridded", "jason3": "observation", "saral": "observation", "swot": "observation"};
   let map, gridLayer, gridRenderer, currentData = null;
 
   // --- Color scale (RdYlBu_r) ---
@@ -425,6 +426,8 @@
     return _buildKey(null, _currentDepth());
   }
 
+  // map_data/ files are downloaded from a GitHub Release archive during the
+  // ReadTheDocs build and placed alongside this HTML file.
   const SITE_BASE_URL = '';
 
   function getFilename(key) {
@@ -834,7 +837,7 @@
   <div class="footer-inner">
     <div class="footer-brand">
       <h3>Ocean &amp; Climate Data Challenge</h3>
-      <p>An open benchmark for evaluating ocean forecasting models, maintained by the PPR Oc&eacute;an et Climat community.</p>
+      <p>An open benchmark for evaluating ocean forecasting models, maintained by IMT Atlantique.</p>
     </div>
     <div class="footer-links">
       <div class="footer-links-col">
