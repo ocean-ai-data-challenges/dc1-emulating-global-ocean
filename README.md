@@ -73,7 +73,7 @@ A ready-to-use environment is available at:
 ### 1. Validate a submission
 
 ```bash
-python dc1/submit.py validate /path/to/my_model --model-name MyModel
+poetry run python dc1/submit.py validate /path/to/my_model --model-name MyModel
 ```
 
 Useful options:
@@ -85,8 +85,8 @@ Useful options:
 ### 2. Run full submission pipeline (recommended)
 
 ```bash
-python dc1/submit.py run /path/to/my_model --model-name MyModel \
-  -d ./dc1_output \
+poetry run python dc1/submit.py run /path/to/my_model --model-name MyModel \
+  --data-directory ./dc1_output \
   --team "My Team" \
   --description "Short description"
 ```
@@ -96,7 +96,7 @@ This command chains validation, evaluation, and result generation.
 ### 3. Inspect expected specification
 
 ```bash
-python dc1/submit.py info --config dc1
+poetry run python dc1/submit.py info --config dc1
 ```
 
 ### 4. Low-level evaluation entrypoint
@@ -105,7 +105,7 @@ python dc1/submit.py info --config dc1
 prefer `submit.py run`.
 
 ```bash
-python dc1/evaluate.py --model-name MyModel
+poetry run python dc1/evaluate.py --model-name MyModel
 ```
 
 By default, `dc1/evaluate.py` writes logs and outputs under `dc1_output/`.

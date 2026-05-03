@@ -13,7 +13,7 @@ the time evolution of a global ocean reanalysis (e.g. GLORYS12) using only 2-D s
 fields, without requiring the full 3-D water column.
 
 DC1 is part of the [PPR Océan & Climat](https://www.ocean-climat.fr/) (*Projet Prioritaire
-de Recherche*), a national research programme launched by the French government and managed
+de Recherche*), a national research program launched by the French government and managed
 by CNRS and Ifremer to improve understanding of the ocean and climate.
 
 ## Goal
@@ -40,7 +40,7 @@ dimension is required**: the evaluation pipeline automatically extracts the surf
 Predictions are launched every **7 days** (evaluation interval) throughout the benchmark
 year. Each forecast covers **10 days** of lead time. The evaluation pipeline:
 
-1. Downloads or reads the submitted emulation for each initialisation date.
+1. Downloads or reads the submitted emulation for each initialization date.
 2. Interpolates predicted surface fields to the space-time locations of each observation
    dataset.
 3. Computes RMSD (and other metrics) between the interpolated prediction and the

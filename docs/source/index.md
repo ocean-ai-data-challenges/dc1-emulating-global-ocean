@@ -60,10 +60,10 @@ python -m pip install -e .
 python -m pip install "dctools @ git+https://github.com/ocean-ai-data-challenges/dc-tools.git"
 
 # 2) Validate
-python dc1/submit.py validate /path/to/my_model --model-name my_model
+poetry run python dc1/submit.py validate /path/to/my_model --model-name my_model
 
 # 3) Run full pipeline
-python dc1/submit.py run /path/to/my_model --model-name my_model -d ./dc1_output
+poetry run python dc1/submit.py run /path/to/my_model --model-name my_model --data-directory ./dc1_output
 ```
 
 For Docker and EDITO options, see {doc}`content/quickstart`.
