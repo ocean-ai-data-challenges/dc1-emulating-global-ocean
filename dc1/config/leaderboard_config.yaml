@@ -23,7 +23,7 @@ texts:
   brand_sub: "Data Challenge"
 
   # URL linked from the navbar GitHub icon and the About page
-  github_url: "https://github.com/ppr-ocean-ia/dc-tools"
+  github_url: "https://github.com/ocean-ai-data-challenges/dc-tools"
 
   # Section-header templates.
   # Available placeholders are shown between {}.
@@ -43,6 +43,9 @@ metrics_names:
   rmsd_geostrophic_currents: "RMSD — Geostrophic Currents"
   rmsd_mld: "RMSD — Mixed Layer Depth"
   lagrangian: "Lagrangian Analysis"
+  mae: "Mean Absolute Error (MAE)"
+  me: "Mean Error (ME)"
+  mse: "Mean Squared Error (MSE)"
 
 # -----------------------------------------------------------------------------
 # C. Variable display names
@@ -68,6 +71,6 @@ variables_names:
 # Map internal model identifier  human-readable name shown in the row labels.
 # -----------------------------------------------------------------------------
 models_names:
-  glonet: "GloNet (reference)"
-  # Add new challenger models here, e.g.:
-  # my_model: "My Model Name"
+  glonet: "GloNet"
+  challenger_model_1: "Challenger Model 1"
+  challenger_model_2: "Challenger Model 2"

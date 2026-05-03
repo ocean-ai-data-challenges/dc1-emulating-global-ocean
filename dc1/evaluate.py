@@ -106,11 +106,8 @@ from dctools.utilities.args_config import parse_arguments  # noqa: E402
 
 # Belt-and-suspenders: cap ALL OpenBLAS variants in the main process at runtime
 # (env vars are set above, but some OpenBLAS builds ignore them after init).
-try:
-    from dctools.metrics.evaluator import _cap_openblas_via_proc_maps  # noqa: E402
-    _cap_openblas_via_proc_maps(1)
-except ImportError:
-    pass  # older dctools without this helper
+from dctools.metrics.evaluator import _cap_openblas_via_proc_maps  # noqa: E402
+_cap_openblas_via_proc_maps(1)
 
 # Directory that holds the DC1-specific YAML configs shipped in this repo.
 DC1_CONFIG_DIR = PROJECT_ROOT / "dc1" / "config"

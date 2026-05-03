@@ -6,8 +6,6 @@
 All generic evaluation logic lives in :class:`.base.BaseDCEvaluation`.
 """
 
-from __future__ import annotations
-
 from argparse import Namespace
 from pathlib import Path
 
@@ -65,7 +63,7 @@ class DC1Evaluation(BaseDCEvaluation):
         else:
             self.dataset_references = {
                 "glonet": [
-                    "argo_profiles", "glorys", "jason3", "saral", "swot", #"argo_velocities",
+                    "argo_profiles", "glorys", "jason3", "saral", "swot",  # "argo_velocities",
                     # "SSS_fields", "SST_fields",
                 ],
             }
@@ -75,4 +73,5 @@ class DC1Evaluation(BaseDCEvaluation):
                 + [item for sublist in self.dataset_references.values() for item in sublist]
             )
         )
+        self._init_cluster()
         self._init_cluster()
