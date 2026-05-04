@@ -92,6 +92,9 @@ poetry run python dc1/submit.py run /path/to/my_model --model-name MyModel \
 ```
 
 This command chains validation, evaluation, and result generation.
+After a successful run, it also auto-generates
+`docs/source/_extra/leaderboard/map_data.tar.gz` when leaderboard map files are available.
+Use `--skip-map-data-pack` to disable this behavior.
 
 ### 3. Inspect expected specification
 

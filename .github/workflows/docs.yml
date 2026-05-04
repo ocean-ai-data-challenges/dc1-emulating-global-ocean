@@ -54,9 +54,9 @@ jobs:
           ARCHIVE="docs/source/_extra/leaderboard/map_data.tar.gz"
 
           if [ ! -f "$ARCHIVE" ]; then
-            echo "WARNING: $ARCHIVE not found (git-lfs checkout may have failed)."
-            echo "Skipping release upload; RTD will use the previous stable asset."
-            exit 0
+            echo "ERROR: $ARCHIVE not found (git-lfs checkout may have failed)."
+            echo "Refusing to trigger RTD rebuild with stale leaderboard assets."
+            exit 1
           fi
 
           # Create the release if it doesn't exist
@@ -80,7 +80,7 @@ jobs:
   trigger-rtd:
     runs-on: ubuntu-latest
     needs: [upload-leaderboard-data]
-    if: always() && !failure() && !cancelled()
+    if: needs.upload-leaderboard-data.result == 'success'
     steps:
       - name: Trigger ReadTheDocs build
         run: |
