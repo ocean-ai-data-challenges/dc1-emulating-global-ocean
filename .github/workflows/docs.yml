@@ -1,15 +1,23 @@
-# Publish leaderboard map_data as a GitHub Release asset.
+# Publish leaderboard map_data assets and trigger ReadTheDocs rebuild.
 #
 # Workflow:
 #   1. Evaluation run generates docs/source/_extra/leaderboard/map_data/
 #   2. Developer runs:  python docs/scripts/pack_map_data.py
-#      → produces docs/source/_extra/leaderboard/map_data.tar.gz
-#   3. Developer triggers this workflow manually (workflow_dispatch) with
-#      "Upload map_data.tar.gz" checked to upload the archive as a Release.
-#   4. Any push to main touching docs/ also triggers a ReadTheDocs rebuild.
+#      → produces/updates docs/source/_extra/leaderboard/map_data.tar.gz
+#   3. Developer commits and pushes (git-lfs stores the binary automatically):
+#        git add docs/source/_extra/leaderboard/map_data.tar.gz
+#        git commit -m "chore: update leaderboard map data"
+#        git push
+#   4. This workflow runs automatically on every qualifying push to main:
+#      - Checks out the repo including git-lfs objects (map_data.tar.gz)
+#      - Uploads map_data.tar.gz as a stable GitHub Release asset
+#      - Uploads a commit-pinned map_data-${GITHUB_SHA}.tar.gz asset
+#      - Triggers a ReadTheDocs rebuild
+#   5. ReadTheDocs downloads the commit-pinned asset (or the stable fallback)
+#      during its pre-build step (see .readthedocs.yaml).
 #
-# ReadTheDocs downloads the latest release asset during its pre-build step
-# (see .readthedocs.yaml).
+# The archive is tracked via git-lfs so it is always present in CI checkouts.
+# No external URL variable or manual upload step is required.
 #
 # Required repository secrets:
 #   RTD_WEBHOOK_URL  – ReadTheDocs generic API incoming webhook URL
@@ -25,38 +33,32 @@ on:
       - "dc1/**"
       - ".readthedocs.yaml"
   workflow_dispatch:
-    inputs:
-      upload_data:
-        description: "Upload map_data.tar.gz to GitHub Release"
-        type: boolean
-        default: false
 
 jobs:
   # --- Job 1: Upload the map_data archive as a GitHub Release asset ----------
   upload-leaderboard-data:
-    if: >-
-      github.event_name == 'workflow_dispatch' &&
-      github.event.inputs.upload_data == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write          # needed to create/update releases
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true            # fetch map_data.tar.gz from git-lfs
 
-      - name: Check archive exists
-        run: |
-          if [ ! -f docs/source/_extra/leaderboard/map_data.tar.gz ]; then
-            echo "ERROR: map_data.tar.gz not found."
-            echo "Run 'python docs/scripts/pack_map_data.py' locally first, then"
-            echo "commit the archive or upload it via 'gh release upload'."
-            exit 1
-          fi
-
-      - name: Create or update release
+      - name: Upload leaderboard archive to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           TAG="leaderboard-data"
+          ARCHIVE="docs/source/_extra/leaderboard/map_data.tar.gz"
+
+          if [ ! -f "$ARCHIVE" ]; then
+            echo "WARNING: $ARCHIVE not found (git-lfs checkout may have failed)."
+            echo "Skipping release upload; RTD will use the previous stable asset."
+            exit 0
+          fi
+
           # Create the release if it doesn't exist
           gh release view "$TAG" >/dev/null 2>&1 || \
             gh release create "$TAG" \
@@ -64,10 +66,15 @@ jobs:
               --notes "Auto-updated archive of leaderboard visualisation data (map_data/)." \
               --latest=false
 
-          # Upload (overwrite if exists)
-          gh release upload "$TAG" \
-            docs/source/_extra/leaderboard/map_data.tar.gz \
-            --clobber
+          # Overwrite the stable asset
+          gh release upload "$TAG" "$ARCHIVE#map_data.tar.gz" --clobber
+
+          # Upload a commit-pinned asset so RTD can fetch data matching
+          # the exact docs commit when available.
+          SHA_ASSET="map_data-${GITHUB_SHA}.tar.gz"
+          cp "$ARCHIVE" "$SHA_ASSET"
+          gh release upload "$TAG" "$SHA_ASSET" --clobber
+          rm -f "$SHA_ASSET"
 
   # --- Job 2: Trigger ReadTheDocs rebuild -----------------------------------
   trigger-rtd:
