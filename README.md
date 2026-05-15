@@ -73,7 +73,7 @@ A ready-to-use environment is available at:
 ### 1. Validate a submission
 
 ```bash
-poetry run python dc1/submit.py validate /path/to/my_model --model-name MyModel
+python -m dc1.submit validate /path/to/my_model --model-name MyModel
 ```
 
 Useful options:
@@ -85,7 +85,7 @@ Useful options:
 ### 2. Run full submission pipeline (recommended)
 
 ```bash
-poetry run python dc1/submit.py run /path/to/my_model --model-name MyModel \
+python -m dc1.submit run /path/to/my_model --model-name MyModel \
   --data-directory ./dc1_output \
   --team "My Team" \
   --description "Short description"
@@ -99,7 +99,7 @@ Use `--skip-map-data-pack` to disable this behavior.
 ### 3. Inspect expected specification
 
 ```bash
-poetry run python dc1/submit.py info --config dc1
+python -m dc1.submit info --config dc1
 ```
 
 ### 4. Low-level evaluation entrypoint
@@ -108,7 +108,7 @@ poetry run python dc1/submit.py info --config dc1
 prefer `submit.py run`.
 
 ```bash
-poetry run python dc1/evaluate.py --model-name MyModel
+python dc1/evaluate.py --model-name MyModel
 ```
 
 By default, `dc1/evaluate.py` writes logs and outputs under `dc1_output/`.

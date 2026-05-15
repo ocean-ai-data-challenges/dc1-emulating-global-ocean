@@ -21,6 +21,14 @@ for _var in (
     _os.environ.setdefault(_var, "1")
 del _var
 
+import warnings as _warnings
+_warnings.filterwarnings(
+    "ignore",
+    message="Engine 'argo' loading failed",
+    category=RuntimeWarning,
+)
+del _warnings
+
 import sys
 import subprocess
 import logging

@@ -56,19 +56,19 @@ Target shape is surface-only `(time, lat, lon) = (10, 672, 1440)` for each varia
 ## 3. Validate
 
 ```bash
-poetry run python dc1/submit.py validate /path/to/my_model --model-name my_model
+python -m dc1.submit validate /path/to/my_model --model-name my_model
 ```
 
 Quick validation:
 
 ```bash
-poetry run python dc1/submit.py validate /path/to/my_model --model-name my_model --quick
+python -m dc1.submit validate /path/to/my_model --model-name my_model --quick
 ```
 
 ## 4. Run full pipeline
 
 ```bash
-poetry run python dc1/submit.py run /path/to/my_model --model-name my_model --data-directory ./dc1_output
+python -m dc1.submit run /path/to/my_model --model-name my_model --data-directory ./dc1_output
 ```
 
 This command performs validation, evaluation, and result export.
@@ -76,7 +76,7 @@ This command performs validation, evaluation, and result export.
 ## 5. Inspect expected spec
 
 ```bash
-poetry run python dc1/submit.py info --config dc1
+python -m dc1.submit info --config dc1
 ```
 
 ## Next pages

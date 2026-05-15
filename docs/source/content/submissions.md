@@ -7,7 +7,7 @@ This page describes accepted input formats and the CLI workflow used in this rep
 Use the repository script:
 
 ```bash
-poetry run python dc1/submit.py <command> ...
+python -m dc1.submit <command> ...
 ```
 
 Equivalent module form:
@@ -56,7 +56,7 @@ my_model/
 ## Validate
 
 ```bash
-poetry run python dc1/submit.py validate <data_path> --model-name <MODEL_NAME>
+python -m dc1.submit validate <data_path> --model-name <MODEL_NAME>
 ```
 
 Common options:
@@ -69,7 +69,7 @@ Common options:
 ## Run
 
 ```bash
-poetry run python dc1/submit.py run <data_path> --model-name <MODEL_NAME> --data-directory ./dc1_output
+python -m dc1.submit run <data_path> --model-name <MODEL_NAME> --data-directory ./dc1_output
 ```
 
 Common options:
@@ -82,7 +82,7 @@ Common options:
 ## Inspect expected specification
 
 ```bash
-poetry run python dc1/submit.py info --config dc1
+python -m dc1.submit info --config dc1
 ```
 
 ## Typical output files

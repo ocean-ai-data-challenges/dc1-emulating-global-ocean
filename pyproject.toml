@@ -147,6 +147,11 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 warn_unused_configs = true
 
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:Engine 'argo' loading failed:RuntimeWarning",
+]
+
 [tool.poe.tasks]
 types = "mypy --install-types --non-interactive dc1"
 lint = "ruff check 'dc1' 'tests'"

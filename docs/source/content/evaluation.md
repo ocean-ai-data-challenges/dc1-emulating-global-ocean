@@ -8,19 +8,19 @@ matter in practice.
 Recommended command:
 
 ```bash
-poetry run python dc1/submit.py run <data_path> --model-name <MODEL_NAME> --data-directory ./dc1_output
+python -m dc1.submit run <data_path> --model-name <MODEL_NAME> --data-directory ./dc1_output
 ```
 
 Validation only:
 
 ```bash
-poetry run python dc1/submit.py validate <data_path> --model-name <MODEL_NAME>
+python -m dc1.submit validate <data_path> --model-name <MODEL_NAME>
 ```
 
 Low-level runner:
 
 ```bash
-poetry run python dc1/evaluate.py --model-name <MODEL_NAME>
+python dc1/evaluate.py --model-name <MODEL_NAME>
 ```
 
 `evaluate.py` injects default paths under `dc1_output/` when they are not provided.
